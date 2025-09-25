@@ -16,13 +16,9 @@
 }
 
 .racetrackName {
-	color: rgb(121,64,22);
-	font: 22px bold sans-serif;
+	font: 26px bold sans-serif;
 	margin-bottom: 0.3em;
 	text-align: center;
-	text-stroke: 1px rgb(121,64,22);
-	-webkit-text-stroke: 1px rgb(121,64,22);
-	text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white;
 }
 
 .mouseoverText {

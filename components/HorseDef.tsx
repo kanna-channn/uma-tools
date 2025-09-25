@@ -263,18 +263,21 @@ export function HorseDef(props) {
 		setSkillPickerOpen(false);
 	}
 
-	function handleSkillClick(e) {
-		e.stopPropagation();
-		const se = e.target.closest('.skill, .expandedSkill');
-		if (se == null) return;
-		if (e.target.classList.contains('skillDismiss')) {
-			setSkills(state.skills.delete(se.dataset.skillid))
-		} else if (se.classList.contains('expandedSkill')) {
-			setExpanded(expanded.delete(se.dataset.skillid));
-		} else {
-			setExpanded(expanded.add(se.dataset.skillid));
-		}
-	}
+  function handleSkillClick(e) {
+    e.stopPropagation();
+    const se = e.target.closest(".skill, .expandedSkill");
+    if (se == null) return;
+    if (e.target.classList.contains("skillDismiss")) {
+      setSkills(state.skills.delete(se.dataset.skillid));
+    } else if (
+      se.classList.contains("expandedSkill") &&
+      e.target.closest(".expandedSkillHeader")
+    ) {
+      setExpanded(expanded.delete(se.dataset.skillid));
+    } else {
+      setExpanded(expanded.add(se.dataset.skillid));
+    }
+  }
 
 	useEffect(function () {
 		window.requestAnimationFrame(() =>

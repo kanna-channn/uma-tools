@@ -1,3 +1,4 @@
+
 @font-face {
 	font-family: "Inter";
 	src: local("Inter"), url("/uma-tools/fonts/Inter-VariableFont_opsz,wght.ttf") format("truetype");
@@ -8,8 +9,92 @@
 	src: local("Noto Sans JP"), url("/uma-tools/fonts/NotoSansJP-VariableFont_wght.ttf") format("truetype");
 }
 
-body {
-	font-family: Inter, "Noto Sans JP", sans-serif;
+body {    
+    --background-img: url(data:image/png;base64,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);
+    --background-color-dark: #181818;
+    --background-color-default: #202020;
+    --background-color-emphasis: #343434;
+    --background-color-inset: #181818;
+    --background-color-muted: #222222;
+    --background-color-neutral-emphasis: #606060;
+    --background-color-neutral-muted: #343434;
+
+	--border-color-default: #343434;
+    --border-color-muted: #222222;
+
+	--foreground-color-default: #cccccc;
+	--foreground-color-muted: #afafaf;
+	--foreground-color-dark: #181818;
+	--foreground-color-disabled: #555555;
+	--foreground-color-accent: #4f8cc9;
+	--foreground-color-accent-muted: #3b6b9b;
+
+	--button-background-color-disabled: #181818;
+    --button-background-color-hover: #242424;
+    --button-background-color-rest: #181818;
+    --button-background-color-selected: #282828;
+    --button-border-color-disabled: #343434;
+    --button-border-color-hover: #484848;
+    --button-border-color-rest: #343434;
+
+	--color-green-light: #458A45;
+	--color-green-dark: #346934;
+	--color-gold-bright: #967e2a;
+	--color-gold-dark: #423508;
+	--color-gold-neutral-bright: #ac943e;
+	--color-gold-neutral-dark: #5f4b0b;
+
+	
+    background-color: var(--background-color-muted);
+    background-image: var(--background-img);
+	color: var(--foreground-color-default);
+
+	font-family: var(--fontStack-sansSerif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji")
+}
+
+button {
+	cursor: pointer;
+    color: var(--foreground-color-default);
+    background-color: var(--button-background-color-rest);
+
+    &:hover {
+      background-color: var(--button-background-color-hover);
+      border-color: var(--button-border-color-hover);
+    }
+
+    &:active {
+      background-color: var(--button-background-color-active);
+      border-color: var(--button-border-color-active);
+    }
+
+    &:disabled,
+    &[aria-disabled='true']:not([data-loading='true']) {
+      color: var(--foreground-color-disabled);
+      background-color: var(--button-background-color-disabled);
+      border-color: var(--button-border-color-disabled);
+      box-shadow: none;
+    }
+}
+
+select {
+	color: var(--foreground-color-default);
+	background-color: var(--background-color-default);
+	border-color: var(--border-color-default);
+	border-width: 1px;
+	border-style: solid;
+}
+
+input {
+	color: var(--foreground-color-default);
+	background-color: var(--background-color-default);
+}
+
+a {
+	color: var(--foreground-color-accent);
+	
+	&:active {
+		color: var(--foreground-color-accent-muted);
+	}
 }
 
 #app {
@@ -19,6 +104,7 @@ body {
 	grid-template-rows: auto 1fr;
 	height: 98vh;
 }
+
 
 #topPane {
 	display: grid;
@@ -31,6 +117,7 @@ body {
 	flex-direction: column;
 	justify-content: center;
 	margin-left: 35px;
+	width: 190px;
 }
 
 #seedWrapper {
@@ -44,8 +131,6 @@ body {
 }
 
 #run {
-	background: none;
-	border: 1px solid rgb(148, 150, 189);
 	border-radius: 8px;
 	font-size: 1.6em;
 	margin-top: 10px;
@@ -69,15 +154,17 @@ body {
 }
 
 .trackSelect > select {
-	background: none;
-	border: 1px solid rgb(148, 150, 189);
-	border-radius: 0 8px 8px 0;
 	padding: 0.7em;
 }
 
 .trackSelect > select:first-child {
 	border-radius: 8px 0 0 8px;
 	border-right: none;
+}
+
+.trackSelect > select:last-child {
+	border-radius: 0 8px 8px 0;
+	border-left: none;
 }
 
 #buttonsRow > div {
@@ -91,7 +178,7 @@ body {
 .groundSelect {
 	background: inherit;
 	border: none;
-	color: rgb(121, 64, 22);
+	color: var(--foreground-color-muted);
 	font-size: 1.2em;
 	font-weight: bold;
 	padding: 0;
@@ -136,7 +223,7 @@ body {
 }
 
 #resultsHelp {
-	color: rgb(121, 64, 22);
+	color: var(--foreground-color-muted);
 	font-size: 0.7em;
 	margin-top: 0.5em;
 }
@@ -146,7 +233,7 @@ body {
 }
 
 #resultsSummary > tfoot th {
-	color: rgb(121, 64, 22);
+	color: var(--foreground-color-muted);
 	cursor: pointer;
 	font-size: 0.9em;
 }
@@ -156,10 +243,10 @@ body {
 }
 
 #resultsSummary > tbody td {
-	background: rgb(248, 248, 248);
-	border: 2px solid rgb(224, 214, 204);
+    background-color: var(--background-color-muted);
+	border: 2px solid var(--border-color-default);
 	border-radius: 100px;
-	color: rgb(121, 64, 22);
+	color: var(--foreground-color-muted);
 	cursor: pointer;
 	font-size: 2em;
 	font-weight: normal;
@@ -186,7 +273,7 @@ body {
 }
 
 #infoTables tbody {
-	border-bottom: 1px solid rgb(121, 64, 22);
+	border-bottom: 1px solid var(--foreground-color-muted);
 	display: block;
 	width: 450px;
 }
@@ -212,7 +299,7 @@ body {
 }
 
 #infoTables > table th {
-	color: rgb(121, 64, 22);
+	color: var(--foreground-color-muted);
 	font-weight: bold;
 	overflow: hidden;
 	text-align: left;
@@ -250,11 +337,11 @@ body {
 }
 
 .umaTab {
-	background: linear-gradient(white, rgb(228, 227, 234));
-	color: rgb(121,64,22);
+	cursor: pointer;
 	flex-basis: 0;
 	flex-grow: 1;
-	outline: 2px solid rgb(216, 217, 220);
+	background: linear-gradient(var(--background-color-neutral-muted), var(--background-color-muted));
+	outline: 2px solid var(--border-color-default);
 	padding: 6px 0 6px 20px;
 }
 
@@ -267,20 +354,16 @@ body {
 }
 
 .umaTab.selected {
-	background: linear-gradient(rgb(153, 219, 68), rgb(112, 190, 18));
-	color: white;
-	outline: 2px solid rgb(170, 221, 154);
-	z-index: 1;
+	background: linear-gradient(var(--color-green-light), var(--color-green-dark));
 }
 
 #expandBtn {
-	background: linear-gradient(#99db44,#70be12);
-	border: 2px solid rgb(170,221,154);
+	background: linear-gradient(var(--color-green-light), var(--color-green-dark));
+	outline: 2px solid var(--color-green-dark);
 	border-radius: 6px;
-	cursor: default;
 	float: right;
 	height: 34px;
-	margin: 8px 10px 0 0;
+	margin: 4px 10px 4px 0;
 	position: relative;
 	width: 34px;
 }
@@ -299,18 +382,14 @@ body {
 }
 
 .selected > #expandBtn {
-	background: linear-gradient(#fff,#e4e3ea);
-	border: 2px solid rgb(216,217,220);
+	background: linear-gradient(var(--background-color-neutral-muted), var(--background-color-muted));
+	border-color: var(--border-color-default);
 }
 
-.selected > #expandBtn::after {
-	border-right: 2px solid rgb(121,64,22);
-	border-top: 2px solid rgb(121,64,22);
-}
 
 #umaOverlay {
-	background: white;
-	border: 1px solid rgb(148, 150, 189);
+	background: var(--background-color-dark);
+	border: 1px solid var(--border-color-default);
 	border-left: none;
 	border-radius: 0 12px 12px 0;
 	display: flex;
@@ -324,13 +403,19 @@ body {
 }
 
 #closeUmaOverlay {
-	color: rgb(148, 150, 189);
-	cursor: default;
+	cursor: pointer;
 	font-size: 2em;
-	height: 2em;
+	height: 45px;
+	width: 45px;
+	background: linear-gradient(var(--color-green-light), var(--color-green-dark));
+	border: 2px solid var(--color-green-dark);
+	border-radius: 8px;
+	justify-content: center;
+	text-align: center;
 }
 
 #copyUmaButtons {
+	cursor: pointer;
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -338,8 +423,8 @@ body {
 }
 
 #copyUmaButtons > div {
-	background: linear-gradient(rgb(255, 255, 255), rgb(228, 224, 233));
-	border: 2px solid rgb(181, 174, 187);
+	background: linear-gradient(var(--color-green-light), var(--color-green-dark));
+	border: 2px solid var(--color-green-dark);
 	border-radius: 8px;
 	height: 60px;
 	line-height: 60px;
@@ -348,8 +433,8 @@ body {
 }
 
 #copyUmaButtons > div::after {
-	border-top: 2px solid rgb(121, 64, 22);
-	border-right: 2px solid rgb(121, 64, 22);
+	border-top: 2px solid var(--foreground-color-muted);
+	border-right: 2px solid var(--foreground-color-muted);
 	content: '';
 	display: block;
 	height: 30px;
@@ -370,7 +455,7 @@ body {
 }
 
 #swapUmas {
-	color: rgb(121, 64, 22);
+	color: var(--foreground-color-muted);
 	font-size: 36px;
 	text-align: center;
 }

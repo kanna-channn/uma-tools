@@ -1,24 +1,20 @@
 .filterButton {
-	background: rgb(214,207,231);
+	background: var(--background-color-emphasis);
 	border: none;
-	box-shadow: 0 3px 0 rgb(180,178,192);
-	color: rgb(121,64,22);
+	box-shadow: 0 3px 0 var(--background-color-neutral-emphasis);
 	padding: 0.8em;
 	margin: 10px 5px;
-	text-stroke: 1px rgb(121,64,22);
-	-webkit-text-stroke: 1px rgb(121,64,22);
 }
 
 .filterButton.active {
-	background: rgb(86,171,51);
-	box-shadow: 0 3px 0 rgb(86,171,51);
+	background: var(--color-green-light);
+	box-shadow: 0 3px 0 var(--color-green-dark);
 	color: white;
-	text-stroke: 1px white;
-	-webkit-text-stroke: 1px white;
 }
 
 .iconFilterButton {
 	all: unset;
+	cursor: pointer;
 	background-size: contain;
 	filter: grayscale(1);
 	height: 40px;
@@ -46,10 +42,11 @@
 }
 
 .skill {
+	cursor: pointer;
 	align-items: center;
 	border-radius: 8px;
 	border: 2px solid transparent;
-	box-shadow: 0 3px 0 rgb(180,178,192);
+	box-shadow: 0 3px 0 var(--background-color-muted);
 	box-sizing: border-box;
 	display: flex;
 	height: 3em;
@@ -68,13 +65,11 @@
 }
 
 .skillName {
-	color: rgb(121,64,22);
+	color: rgb(226, 226, 226);
+	font-weight: 500;
 	display: flex;
 	flex: 1;
 	overflow: hidden;
-	text-stroke: 1px rgb(121,64,22);
-	-webkit-text-stroke: 1px rgb(121,64,22);
-	text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white;
 	text-wrap: nowrap;
 }
 
@@ -85,19 +80,17 @@
 }
 
 .skillDismiss {
-	color: rgb(121,64,22);
-	cursor: default;
 	padding: 0 7px;
 }
 
 .skill-white {
-	background: linear-gradient(90deg, rgb(255,243,247), rgb(181,178,198)) padding-box,
-							linear-gradient(90deg, rgb(214,207,231), rgb(148,150,189)) border-box;
+	background: linear-gradient(90deg, var(--background-color-neutral-emphasis), var(--background-color-neutral-muted)) padding-box,
+							linear-gradient(90deg, var(--background-color-emphasis), var(--background-color-muted)) border-box;
 }
 
 .skill-gold {
-	background: linear-gradient(90deg, rgb(255,255,239), rgb(255,190,40)) padding-box,
-							linear-gradient(90deg, rgb(255,223,115), rgb(255,166,16)) border-box;
+	background: linear-gradient(90deg, var(--color-gold-neutral-bright), var(--color-gold-neutral-dark)) padding-box,
+							linear-gradient(90deg, var(--color-gold-bright), var(--color-gold-dark)) border-box;
 }
 
 .skill-pink {
@@ -106,8 +99,8 @@
 }
 
 .skill-unique {
-	background: linear-gradient(90deg, rgb(239,255,214), rgb(161,201,248), rgb(170,170,255), rgb(255,186,231)) padding-box,
-							linear-gradient(90deg, rgb(197,255,190), rgb(189,235,255), rgb(195,208,255), rgb(255,138,222)) border-box;
+	background: linear-gradient(90deg, rgb(113, 139, 70), rgb(53, 94, 141), rgb(64, 64, 138), rgb(134, 69, 111)) padding-box,
+							linear-gradient(90deg, rgb(87, 155, 79), rgb(71, 114, 133),rgb(87, 100, 148),rgb(88, 37, 74)) border-box;
 }
 
 .skillDetailsList {
@@ -129,16 +122,16 @@
 }
 
 .expandedSkillHeader {
+	cursor: pointer;
 	align-items: center;
 	display: flex;
-	height: 2.1em;
+	height: 2.2em;
 	margin-bottom: 5px;
 }
 
 .skillDetails {
 	border-style: solid;
 	border-width: 2px 0 0 0;
-	color: rgb(121,64,22);
 }
 
 .skillDetailsSection {

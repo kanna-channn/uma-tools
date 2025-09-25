@@ -11,6 +11,10 @@
 	font-size: 1.4em;
 }
 
+#introtext details > summary {
+	cursor: pointer;
+}
+
 #introtext h2 {
 	font-size: 1.05em;
 	font-weight: bold;

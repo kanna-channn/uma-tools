@@ -1,6 +1,6 @@
 .horseDef {
-	background: rgb(248, 248, 248);
-	border: 2px solid rgb(170, 221, 154);
+    background: var(--background-color-muted);
+	border: 2px solid var(--border-color-default);
 	border-radius: 12px;
 	box-sizing: border-box;
 	display: flex;
@@ -10,10 +10,9 @@
 }
 
 .horseDefHeader {
-	background: linear-gradient(rgb(153, 219, 68), rgb(112, 190, 18));
-	border-bottom: 2px solid rgb(170, 221, 154);
+	background: linear-gradient(var(--color-green-light), var(--color-green-dark));
+	border-bottom: 2px solid var(--border-color-default);
 	border-radius: 10px 10px 0 0;
-	color: white;
 	font-size: 2em;
 	font-weight: bold;
 	padding: 6px 0;
@@ -50,7 +49,6 @@
 }
 
 .umaEpithet > span {
-	color: rgb(121,64,22);
 	font-size: 1.4em;
 	font-weight: bold;
 	margin: 0 auto;
@@ -64,9 +62,8 @@
 
 .umaSelectInput {
 	background: none;
-	border: none;
+	border: 1px solid var(--border-color-default);
 	box-sizing: border-box;
-	color: rgb(121,64,22);
 	font-size: 1.4em;
 	font-weight: bold;
 	text-align: center;
@@ -74,8 +71,7 @@
 }
 
 .umaSuggestions {
-	border: 2px solid rgb(224, 214, 204);
-	cursor: default;
+	border: 2px solid var(--border-color-default);
 	display: none;
 	left: -2px;
 	list-style-type: none;
@@ -93,12 +89,12 @@
 }
 
 .umaSuggestion {
-	background: white;
+	background: var(--background-color-default);
 	padding: 4px;
 }
 
 .umaSuggestion:nth-child(even) {
-	background: rgb(242, 242, 242);
+	background: var(--background-color-muted);
 }
 
 .umaSuggestion.selected, .umaSuggestion:hover {
@@ -118,8 +114,8 @@
 }
 
 .horseParams {
-	background: white;
-	border: 2px solid rgb(163, 221, 111);
+	background: var(--background-color-emphasis);
+	border: 2px solid var(--color-green-light);
 	border-radius: 8px;
 	display: grid;
 	grid-template-columns: repeat(5, 130px);
@@ -128,8 +124,8 @@
 }
 
 .horseParamHeader {
-	background: rgb(121, 216, 35);
-	border-left: 2px dotted rgb(93, 199, 24);
+	background: var(--color-green-light);
+	border-left: 2px dotted var(--color-green-light);
 	color: white;
 	font-weight: bold;
 	text-align: center;
@@ -140,7 +136,6 @@
 }
 
 .horseParamHeader > img {
-	filter: drop-shadow(0 2px 0 rgb(103, 162, 58));
 	height: 1.2em;
 	margin-right: 2px;
 	vertical-align: middle;
@@ -149,13 +144,12 @@
 .horseParamHeader > span {
 	display: inline-block;
 	height: 100%;
-	text-shadow: 0 2px 1px rgb(103, 162, 58);
 	vertical-align: middle;
 }
 
 .horseParam {
 	align-items: center;
-	border-left: 2px dotted rgb(121, 206, 72);
+	border-left: 2px dotted var(--color-green-light);
 	display: flex;
 	padding: 8px;
 }
@@ -171,7 +165,6 @@
 .horseParam > input {
 	background: inherit;
 	border: none;
-	color: rgb(121,64,22);
 	font-size: 1.2em;
 	font-weight: bold;
 	margin-left: 10px;
@@ -188,10 +181,9 @@
 
 .horseAptitudes > div {
 	align-items: center;
-	border: 2px solid rgb(224, 214, 204);
+	border: 2px solid var(--border-color-default);
 	border-radius: 6px;
-	background: white;
-	color: rgb(121, 64, 22);
+	background: var(--background-color-emphasis);
 	display: flex;
 	font-weight: bold;
 	height: 1.8em;
@@ -207,8 +199,8 @@
 }
 
 .horseAptitudeSelect > span::after {
-	border-bottom: 1px solid rgb(121,64,22);
-	border-right: 1px solid rgb(121,64,22);
+	border-bottom: 1px solid var(--foreground-color-default);
+	border-right: 1px solid var(--foreground-color-default);
 	content: "";
 	display: block;
 	height: 4px;
@@ -219,8 +211,8 @@
 }
 
 .horseAptitudeSelect > ul {
-	background: white;
-	border: 1px solid rgb(224, 214, 204);
+	background: var(--background-color-emphasis);
+	border: 1px solid var(--border-color-default);
 	list-style-type: none;
 	position: absolute;
 	right: -12px;
@@ -250,7 +242,7 @@
 }
 
 .horseSkillHeader {
-	background: linear-gradient(rgb(168, 227, 5), rgb(97, 174, 22)) padding-box, linear-gradient(rgb(173, 219, 60), rgb(85, 143, 24)) border-box;
+	background: linear-gradient(var(--color-green-light), var(--color-green-dark)) padding-box, linear-gradient(var(--color-green-light), var(--color-green-dark)) border-box;
 	border: 2px solid transparent;
 	border-radius: 36px;
 	box-shadow: 0px 3px 0 rgb(180,178,192);
@@ -264,7 +256,6 @@
 }
 
 .horseSkillListWrapper {
-	background: rgb(242, 242, 242);
 	border-radius: 4px;
 	height: 100%;
 	margin: 0 6px 6px 6px;
@@ -286,7 +277,7 @@
 }
 
 .horseSkillPickerWrapper {
-	background: white;
+	background: var(--background-color-default);
 	bottom: 0;
 	display: none;
 	left: 10%;
@@ -320,9 +311,8 @@
 
 .addSkillButton {
 	align-items: center;
-	background: white;
-	border: 1px solid rgb(224, 214, 204);
-	color: rgb(121, 64, 22);
+	background: var(--background-color-muted);
+	border: 1px solid var(--border-color-default);
 }
 
 .addSkillButton > span {
