@@ -509,37 +509,46 @@ function App(props) {
 		setUma2Wrapper(state.uma2);
 	}
 
-	const loadHash = () => {
+	const loadLocationHash = async () => {
 		if (window.location.hash) {
-			deserialize(window.location.hash.slice(1)).then(state => loadState(state));
+			const state = await deserialize(window.location.hash.slice(1))
+			loadState(state);
 		}
 	}
 
-	useEffect(() => {
-		const courseId = JSON.parse(localStorage.getItem("courseId"));
-		const samples = JSON.parse(localStorage.getItem("samples"));
-		const seed = JSON.parse(localStorage.getItem("seed"));
-		const usePosKeep = JSON.parse(localStorage.getItem("usePosKeep"));
-		const showHp = JSON.parse(localStorage.getItem("showHp"));
-		const raceDef = JSON.parse(localStorage.getItem("raceDef"));
-		const uma1 = JSON.parse(localStorage.getItem("uma1"));
-		const uma2 = JSON.parse(localStorage.getItem("uma2"));
-
+	const loadLocalStorage = (jsonData: {[key: string]: any}) => {
 		const localStorageState: AppState = {
-			courseId,
-			samples,
-			seed,
-			usePosKeep,
-			showHp,
-			raceDef: raceDef ? new RaceParams(raceDef) : null,
-			uma1: uma1 ? new HorseState(uma1).set('skills', SkillSet(uma1.skills)) : null,
-			uma2: uma2 ? new HorseState(uma2).set('skills', SkillSet(uma2.skills)) : null
+			courseId: jsonData.courseId ?? DEFAULT_COURSE_ID,
+			samples: jsonData.samples ?? DEFAULT_SAMPLES,
+			seed: jsonData.seed ?? DEFAULT_SEED,
+			usePosKeep: jsonData.usePosKeep ?? true,
+			showHp: jsonData.showHp ?? true,
+			raceDef: jsonData.raceDef ? new RaceParams(jsonData.raceDef) : new RaceParams(),
+			uma1: jsonData.uma1 ? new HorseState(jsonData.uma1).set('skills', SkillSet(jsonData.uma1.skills)) : new HorseState(),
+			uma2: jsonData.uma2 ? new HorseState(jsonData.uma2).set('skills', SkillSet(jsonData.uma2.skills)) : new HorseState()
 		}
-		if (Object.values(localStorageState).some(v => v !== null)) {
-			loadState(localStorageState);
+		loadState(localStorageState);
+	}
+
+	useEffect(() => {
+		if (window.location.hash) {
+			loadLocationHash();
+		} else {
+			const jsonData = {
+				courseId: JSON.parse(localStorage.getItem("courseId")),
+				samples: JSON.parse(localStorage.getItem("samples")),
+				seed: JSON.parse(localStorage.getItem("seed")),
+				usePosKeep: JSON.parse(localStorage.getItem("usePosKeep")),
+				showHp: JSON.parse(localStorage.getItem("showHp")),
+				raceDef: JSON.parse(localStorage.getItem("raceDef")),
+				uma1: JSON.parse(localStorage.getItem("uma1")),
+				uma2: JSON.parse(localStorage.getItem("uma2")),
+			}
+			if (Object.values(jsonData).some(data => data !== null)) {
+				loadLocalStorage(jsonData);
+			}
 		}
-		loadHash();
-		window.addEventListener('hashchange', loadHash);
+		window.addEventListener('hashchange', loadLocationHash);
 	}, []);
 
 	function copyStateUrl(e) {
