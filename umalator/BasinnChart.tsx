@@ -75,7 +75,7 @@ function headerRenderer(radioGroup, selectedType, type, text, onClick) {
 export function BasinnChart(props) {
 	const radioGroup = useId();
 	const [selected, setSelected] = useState('');
-	const [selectedType, setSelectedType] = useState('mean');
+	const [selectedType, setSelectedType] = useState('median');
 
 	function headerClick(type) {
 		setSelectedType(type);
@@ -108,7 +108,7 @@ export function BasinnChart(props) {
 		sortDescFirst: true
 	}], [selectedType]);
 
-	const [sorting, setSorting] = useState<SortingState>([{id: 'mean', desc: true}]);
+	const [sorting, setSorting] = useState<SortingState>([{id: 'median', desc: true}]);
 
 	const table = useTable({
 		_features: tableFeatures({rowSortingFeature}),

@@ -1,8 +1,8 @@
 .basinnChartWrapper {
-	/*border: 2px solid rgb(224,214,204);*/
-	border: 2px solid rgb(181,174,187);
+	background: var(--background-color-default);
+	border: 2px solid var(--border-color-default);
 	border-radius: 6px;
-	height: 550px;
+	height: 100%;
 	overflow-x: hidden;
 	overflow-y: auto;
 	width: 100%;
@@ -10,8 +10,8 @@
 
 .basinnChart {
 	border-collapse: collapse;
-	color: #794016;
-	font-weight: bold;
+	color: var(--foreground-color-default);
+	font-weight: 500;
 	width: 100%;
 }
 
@@ -21,7 +21,7 @@
 }
 
 .basinnChart th {
-	background: linear-gradient(#fff,#e4e0e9);
+	background: linear-gradient(var(--background-color-muted),var(--background-color-inset));
 	text-align: left;
 	width: 15%;
 }
@@ -32,7 +32,7 @@
 }
 
 .basinnChart .columnHeader {
-	border-bottom: 2px solid rgb(181, 174, 187);
+	border-bottom: 2px solid var(--border-color-muted);
 	margin-left: -18px;
 	padding-right: 30px;
 	width: 100%;
@@ -44,8 +44,8 @@
 }
 
 .basinnChartSortedAsc span::after, .basinnChartSortedDesc span::after {
-	border-bottom: 2px solid #794016;
-	border-right: 2px solid #794016;
+	border-bottom: 2px solid var(--foreground-color-default);
+	border-right: 2px solid var(--foreground-color-default);
 	content: "";
 	display: block;
 	height: 4px;
@@ -64,7 +64,7 @@
 }
 
 .basinnChart tr.selected {
-	background: rgb(121, 216, 35);
+	background: var(--color-green-dark);
 }
 
 .basinnChart td {

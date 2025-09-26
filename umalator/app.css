@@ -185,6 +185,10 @@ a {
 	text-align: right;
 }
 
+.groundSelect option {
+	background: var(--background-color-default)
+}
+
 .weatherSelect {
 	display: flex;
 	margin-left: 5px;
@@ -465,8 +469,8 @@ a {
 }
 
 .basinnChartPopover {
-	background: white;
-	border: 2px solid rgb(181, 174, 187);
+	background: var(--background-color-default);
+	border: 2px solid var(--border-color-default);
 	border-radius: 6px;
 	display: flex;
 	height: 333px;
