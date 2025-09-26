@@ -277,13 +277,13 @@ function racedefToParams({mood, ground, weather, season, time, grade}: RaceParam
 	};
 }
 
-async function serialize(courseId: number, nsamples: number, seed: number, usePosKeep: boolean, racedef: RaceParams, uma1: HorseState, uma2: HorseState) {
+async function serialize(courseId: number, samples: number, seed: number, usePosKeep: boolean, showHp, raceDef: RaceParams, uma1: HorseState, uma2: HorseState) {
 	const json = JSON.stringify({
 		courseId,
-		nsamples,
+		samples,
 		seed,
 		usePosKeep,
-		racedef: racedef.toJS(),
+		racedef: raceDef.toJS(),
 		uma1: uma1.toJS(),
 		uma2: uma2.toJS()
 	});
@@ -307,7 +307,7 @@ async function serialize(courseId: number, nsamples: number, seed: number, usePo
 	}
 }
 
-async function deserialize(hash) {
+async function deserialize(hash: string): Promise<AppState> {
 	const zipped = atob(decodeURIComponent(hash));
 	const buf = new Uint8Array(zipped.split('').map(c => c.charCodeAt(0)));
 	const stringStream = new ReadableStream({
@@ -327,20 +327,22 @@ async function deserialize(hash) {
 				const o = JSON.parse(json);
 				return {
 					courseId: o.courseId,
-					nsamples: o.nsamples,
+					samples: o.samples,
 					seed: o.seed || DEFAULT_SEED,  // field added later, could be undefined when loading state from existing links
 					usePosKeep: o.usePosKeep,
-					racedef: new RaceParams(o.racedef),
+					showHp: o.showHp,
+					raceDef: new RaceParams(o.racedef),
 					uma1: new HorseState(o.uma1).set('skills', SkillSet(o.uma1.skills)),
 					uma2: new HorseState(o.uma2).set('skills', SkillSet(o.uma2.skills))
 				};
 			} catch (_) {
 				return {
 					courseId: DEFAULT_COURSE_ID,
-					nsamples: DEFAULT_SAMPLES,
+					samples: DEFAULT_SAMPLES,
 					seed: DEFAULT_SEED,
 					usePosKeep: true,
-					racedef: new RaceParams(),
+					showHp: true,
+					raceDef: new RaceParams(),
 					uma1: new HorseState(),
 					uma2: new HorseState()
 				};
@@ -416,14 +418,16 @@ function nextUiState(state: typeof DEFAULT_UI_STATE, msg: UiStateMsg) {
 	}
 }
 
+type AppState = {courseId: number, samples: number, seed: number, usePosKeep: boolean, showHp: boolean, raceDef: RaceParams, uma1: HorseState, uma2: HorseState};
+
 function App(props) {
 	//const [language, setLanguage] = useLanguageSelect();
 	const [skillsOpen, setSkillsOpen] = useState(false);
 	const [racedef, setRaceDef] = useState(() => new RaceParams());
 	const [nsamples, setSamples] = useState(DEFAULT_SAMPLES);
 	const [seed, setSeed] = useState(DEFAULT_SEED);
-	const [usePosKeep, togglePosKeep] = useReducer((b,_) => !b, true);
-	const [showHp, toggleShowHp] = useReducer((b,_) => !b, false);
+	const [usePosKeep, setUsePosKeep] = useState(true);
+	const [showHp, setShowHp] = useState(true);
 	const [{courseId, results, runData, chartData, displaying}, setSimState] = useReducer(updateResultsState, EMPTY_RESULTS_STATE);
 	const setCourseId = setSimState;
 	const setResults = setSimState;
@@ -442,13 +446,14 @@ function App(props) {
 	const [popoverSkill, setPopoverSkill] = useState('');
 
 	function racesetter(prop) {
-		return (value) => setRaceDef(racedef.set(prop, value));
+		return (value) => setRaceDefWrapper(racedef.set(prop, value));
 	}
 
 	const course = useMemo(() => CourseHelpers.getCourse(courseId), [courseId]);
 
 	const [uma1, setUma1] = useState(() => new HorseState());
 	const [uma2, setUma2] = useState(() => new HorseState());
+
 
 	const [{mode, currentIdx, expanded}, updateUiState] = useReducer(nextUiState, DEFAULT_UI_STATE);
 	function toggleExpand(e: Event) {
@@ -473,28 +478,73 @@ function App(props) {
 		return w;
 	}, []));
 
-	function loadState() {
+	const stateIsRecord = (state: any): state is Record<any> => {
+		return state instanceof Record;
+	}
+
+	const setWrapper = (setter: (state: any) => void, storageKey: string) => (state: any) => {
+		localStorage.setItem(storageKey, JSON.stringify(stateIsRecord(state) ? state.toJS() : state));
+		setter(state);
+	}
+
+	const setCourseIdWrapper = setWrapper(setCourseId, "courseId");
+	const setSamplesWrapper = setWrapper(setSamples, "samples");
+	const setSeedWrapper = setWrapper(setSeed, "seed");
+	const setUsePosKeepWrapper = setWrapper(setUsePosKeep, "usePosKeep");
+	const toggleUsePosKeep = () => setUsePosKeepWrapper(!usePosKeep);
+	const setShowHpWrapper = setWrapper(setShowHp, "showHp");
+	const toggleShowHp = () => setShowHpWrapper(!showHp);
+	const setRaceDefWrapper = setWrapper(setRaceDef, "raceDef");
+	const setUma1Wrapper = setWrapper(setUma1, "uma1");
+	const setUma2Wrapper = setWrapper(setUma2, "uma2");
+	
+	const loadState = (state: AppState) => {
+		setCourseIdWrapper(state.courseId);
+		setSamplesWrapper(state.samples);
+		setSeedWrapper(state.seed);
+		setUsePosKeepWrapper(state.usePosKeep);
+		setShowHp(state.showHp);
+		setRaceDefWrapper(state.raceDef);
+		setUma1Wrapper(state.uma1);
+		setUma2Wrapper(state.uma2);
+	}
+
+	const loadHash = () => {
 		if (window.location.hash) {
-			deserialize(window.location.hash.slice(1)).then(o => {
-				setCourseId(o.courseId);
-				setSamples(o.nsamples);
-				setSeed(o.seed);
-				if (o.usePosKeep != usePosKeep) togglePosKeep(0);
-				setRaceDef(o.racedef);
-				setUma1(o.uma1);
-				setUma2(o.uma2);
-			});
+			deserialize(window.location.hash.slice(1)).then(state => loadState(state));
 		}
 	}
 
-	useEffect(function () {
-		loadState();
-		window.addEventListener('hashchange', loadState);
+	useEffect(() => {
+		const courseId = JSON.parse(localStorage.getItem("courseId"));
+		const samples = JSON.parse(localStorage.getItem("samples"));
+		const seed = JSON.parse(localStorage.getItem("seed"));
+		const usePosKeep = JSON.parse(localStorage.getItem("usePosKeep"));
+		const showHp = JSON.parse(localStorage.getItem("showHp"));
+		const raceDef = JSON.parse(localStorage.getItem("raceDef"));
+		const uma1 = JSON.parse(localStorage.getItem("uma1"));
+		const uma2 = JSON.parse(localStorage.getItem("uma2"));
+
+		const localStorageState: AppState = {
+			courseId,
+			samples,
+			seed,
+			usePosKeep,
+			showHp,
+			raceDef: raceDef ? new RaceParams(raceDef) : null,
+			uma1: uma1 ? new HorseState(uma1).set('skills', SkillSet(uma1.skills)) : null,
+			uma2: uma2 ? new HorseState(uma2).set('skills', SkillSet(uma2.skills)) : null
+		}
+		if (Object.values(localStorageState).some(v => v !== null)) {
+			loadState(localStorageState);
+		}
+		loadHash();
+		window.addEventListener('hashchange', loadHash);
 	}, []);
 
 	function copyStateUrl(e) {
 		e.preventDefault();
-		serialize(courseId, nsamples, seed, usePosKeep, racedef, uma1, uma2).then(hash => {
+		serialize(courseId, nsamples, seed, usePosKeep, showHp, racedef, uma1, uma2).then(hash => {
 			const url = window.location.protocol + '//' + window.location.host + window.location.pathname;
 			window.navigator.clipboard.writeText(url + '#' + hash);
 		});
@@ -502,18 +552,18 @@ function App(props) {
 
 	function copyUmaToRight() {
 		postEvent('copyUma', {direction: 'to-right'});
-		setUma2(uma1);
+		setUma2Wrapper(uma1);
 	}
 
 	function copyUmaToLeft() {
 		postEvent('copyUma', {direction: 'to-left'});
-		setUma1(uma2);
+		setUma1Wrapper(uma2);
 	}
 
 	function swapUmas() {
 		postEvent('copyUma', {direction: 'swap'});
-		setUma1(uma2);
-		setUma2(uma1);
+		setUma1Wrapper(uma2);
+		setUma2Wrapper(uma1);
 	}
 
 	const strings = {skillnames: {}, tracknames: TRACKNAMES_en};
@@ -557,7 +607,7 @@ function App(props) {
 
 	function addSkillFromTable(skillId) {
 		postEvent('addSkillFromTable', {skillId});
-		setUma1(uma1.set('skills', uma1.skills.add(skillId)));
+		setUma1Wrapper(uma1.set('skills', uma1.skills.add(skillId)));
 	}
 
 	function showPopover(skillId) {
@@ -725,15 +775,15 @@ function App(props) {
 							</div>
 						</fieldset>
 						<label for="nsamples">Samples:</label>
-						<input type="number" id="nsamples" min="1" max="10000" value={nsamples} onInput={(e) => setSamples(+e.currentTarget.value)} />
+						<input type="number" id="nsamples" min="1" max="10000" value={nsamples} onInput={(e) => setSamplesWrapper(+e.currentTarget.value)} />
 						<label for="seed">Seed:</label>
 						<div id="seedWrapper">
-							<input type="number" id="seed" value={seed} onInput={(e) => setSeed(+e.currentTarget.value)} />
-							<button title="Randomize seed" onClick={() => setSeed(Math.floor(Math.random() * (-1 >>> 0)) >>> 0)}>🎲</button>
+							<input type="number" id="seed" value={seed} onInput={(e) => setSeedWrapper(+e.currentTarget.value)} />
+							<button title="Randomize seed" onClick={() => setSeedWrapper(Math.floor(Math.random() * (-1 >>> 0)) >>> 0)}>🎲</button>
 						</div>
 						<div>
 							<label for="poskeep">Simulate pos keep</label>
-							<input type="checkbox" id="poskeep" checked={usePosKeep} onClick={togglePosKeep} />
+							<input type="checkbox" id="poskeep" checked={usePosKeep} onClick={toggleUsePosKeep} />
 						</div>
 						<div>
 							<label for="showhp">Show HP consumption</label>
@@ -745,10 +795,10 @@ function App(props) {
 							: <button id="run" onClick={doBasinnChart} tabindex={1}>RUN</button>
 						}
 						<a href="#" onClick={copyStateUrl}>Copy link</a>
-						<RacePresets set={(courseId, racedef) => { setCourseId(courseId); setRaceDef(racedef); }} />
+						<RacePresets set={(courseId, racedef) => { setCourseIdWrapper(courseId); setRaceDefWrapper(racedef); }} />
 					</div>
 					<div id="buttonsRow">
-						<TrackSelect key={courseId} courseid={courseId} setCourseid={setCourseId} tabindex={2} />
+						<TrackSelect key={courseId} courseid={courseId} setCourseid={setCourseIdWrapper} tabindex={2} />
 						<div id="buttonsRowSpace" />
 						<TimeOfDaySelect value={racedef.time} set={racesetter('time')} />
 						<div>
@@ -762,7 +812,7 @@ function App(props) {
 				{expanded && <div id="umaPane" />}
 				<div id={expanded ? 'umaOverlay' : 'umaPane'}>
 					<div class={!expanded && currentIdx == 0 ? 'selected' : ''}>
-						<HorseDef key={uma1.outfitId} state={uma1} setState={setUma1} courseDistance={course.distance} tabstart={() => 4}>
+						<HorseDef key={uma1.outfitId} state={uma1} setState={setUma1Wrapper} courseDistance={course.distance} tabstart={() => 4}>
 							{expanded ? 'Umamusume 1' : umaTabs}
 						</HorseDef>
 					</div>
@@ -773,7 +823,7 @@ function App(props) {
 							<div id="swapUmas" title="Swap umas" onClick={swapUmas}>⮂</div>
 						</div>}
 					{mode == Mode.Compare && <div class={!expanded && currentIdx == 1 ? 'selected' : ''}>
-						<HorseDef key={uma2.outfitId} state={uma2} setState={setUma2} courseDistance={course.distance} tabstart={() => 4 + horseDefTabs()}>
+						<HorseDef key={uma2.outfitId} state={uma2} setState={setUma2Wrapper} courseDistance={course.distance} tabstart={() => 4 + horseDefTabs()}>
 							{expanded ? 'Umamusume 2' : umaTabs}
 						</HorseDef>
 					</div>}
@@ -785,5 +835,4 @@ function App(props) {
 	);
 }
 
-initTelemetry();
 render(<App lang="en-ja" />, document.getElementById('app'));
