@@ -48,8 +48,10 @@ class RaceParams extends Record({
 const enum EventType { CM, LOH }
 
 const presets = (CC_GLOBAL ? [
-	{type: EventType.CM, date: '2025-09', courseId: 10811, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
-	{type: EventType.CM, date: '2025-08', courseId: 10606, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday}
+	{type: EventType.CM, name: 'Leo Cup', date: '2025-10-30', courseId: 10906, season: Season.Summer, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Cancer Cup', date: '2025-10-07', courseId: 10602, season: Season.Summer, ground: GroundCondition.Yielding, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Gemini Cup', date: '2025-09', courseId: 10811, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Taurus Cup', date: '2025-08', courseId: 10606, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday}
 ] : [
 	{type: EventType.LOH, date: '2025-11', courseId: 11502, season: Season.Autumn, time: Time.Midday},
 	{type: EventType.CM, date: '2025-10', courseId: 10302, season: Season.Autumn, ground: GroundCondition.Good, weather: Weather.Cloudy, time: Time.Midday},
@@ -60,6 +62,7 @@ const presets = (CC_GLOBAL ? [
 ])
 	.map(def => ({
 		type: def.type,
+		name: def.name,
 		date: new Date(def.date),
 		courseId: def.courseId,
 		racedef: new RaceParams({
@@ -73,7 +76,8 @@ const presets = (CC_GLOBAL ? [
 	}))
 	.sort((a,b) => +b.date - +a.date);
 
-const DEFAULT_COURSE_ID = presets[presets.findIndex((now => p => new Date(p.date.getFullYear(), p.date.getUTCMonth() + 1, 0) < now)(new Date())) - 1].courseId;
+const DEFAULT_PRESET = presets[Math.max(presets.findIndex((now => p => new Date(p.date.getFullYear(), p.date.getUTCMonth() + 1, 0) < now)(new Date())) - 1, 0)];
+const DEFAULT_COURSE_ID = DEFAULT_PRESET.courseId;
 
 function id(x) { return x; }
 
@@ -383,12 +387,13 @@ function updateResultsState(state: typeof EMPTY_RESULTS_STATE, o: number | strin
 
 function RacePresets(props) {
 	const id = useId();
+	const selectedIdx = presets.findIndex(p => p.courseId == props.courseId && p.racedef.equals(props.racedef));
 	return (
 		<Fragment>
 			<label for={id}>Preset:</label>
 			<select id={id} onChange={e => { const i = +e.currentTarget.value; i > -1 && props.set(presets[i].courseId, presets[i].racedef); }}>
 				<option value="-1"></option>
-				{presets.map((p,i) => <option value={i}>{p.date.getFullYear() + '-' + (100 + p.date.getUTCMonth() + 1).toString().slice(-2) + (p.type == EventType.CM ? ' CM' : ' LOH')}</option>)}
+				{presets.map((p,i) => <option value={i} selected={i == selectedIdx}>{p.name || (p.date.getFullYear() + '-' + (100 + p.date.getUTCMonth() + 1).toString().slice(-2) + (p.type == EventType.CM ? ' CM' : ' LOH'))}</option>)}
 			</select>
 		</Fragment>
 	);
@@ -419,7 +424,7 @@ function nextUiState(state: typeof DEFAULT_UI_STATE, msg: UiStateMsg) {
 function App(props) {
 	//const [language, setLanguage] = useLanguageSelect();
 	const [skillsOpen, setSkillsOpen] = useState(false);
-	const [racedef, setRaceDef] = useState(() => new RaceParams());
+	const [racedef, setRaceDef] = useState(() => DEFAULT_PRESET.racedef);
 	const [nsamples, setSamples] = useState(DEFAULT_SAMPLES);
 	const [seed, setSeed] = useState(DEFAULT_SEED);
 	const [usePosKeep, togglePosKeep] = useReducer((b,_) => !b, true);
@@ -745,7 +750,7 @@ function App(props) {
 							: <button id="run" onClick={doBasinnChart} tabindex={1}>RUN</button>
 						}
 						<a href="#" onClick={copyStateUrl}>Copy link</a>
-						<RacePresets set={(courseId, racedef) => { setCourseId(courseId); setRaceDef(racedef); }} />
+						<RacePresets courseId={courseId} racedef={racedef} set={(courseId, racedef) => { setCourseId(courseId); setRaceDef(racedef); }} />
 					</div>
 					<div id="buttonsRow">
 						<TrackSelect key={courseId} courseid={courseId} setCourseid={setCourseId} tabindex={2} />
