@@ -112,6 +112,10 @@ export function UmaSelector(props) {
 				<img src="/uma-tools/icons/utx_ico_umamusume_00.png" />
 			</div>
 			<div class="umaEpithet"><span>{props.value && u.outfits[props.value]}</span></div>
+			<div class="resetButtons">
+				{props.onReset && <button className="resetUmaButton" onClick={props.onReset} title="Reset this horse to default stats and skills">Reset</button>}
+				{props.onResetAll && <button className="resetUmaButton" onClick={props.onResetAll} title="Reset all horses to default stats and skills">Reset All</button>}
+			</div>
 			<div class="umaSelectWrapper">
 				<input type="text" class="umaSelectInput" value={query.input} tabindex={props.tabindex} onInput={handleInput} onKeyDown={handleKeyDown} onFocus={() => setOpen(true)} onBlur={handleBlur} ref={input} />
 				<ul class={`umaSuggestions ${open ? 'open' : ''}`} onMouseDown={handleClick} ref={suggestionsContainer}>
@@ -184,10 +188,44 @@ export function AptitudeSelect(props){
 	);
 }
 
+export function MoodSelect(props){
+	const [open, setOpen] = useState(false);
+	const moodValues = [
+		{value: 2, icon: 'utx_ico_motivation_m_04', label: 'Great'},
+		{value: 1, icon: 'utx_ico_motivation_m_03', label: 'Good'},
+		{value: 0, icon: 'utx_ico_motivation_m_02', label: 'Normal'},
+		{value: -1, icon: 'utx_ico_motivation_m_01', label: 'Bad'},
+		{value: -2, icon: 'utx_ico_motivation_m_00', label: 'Awful'}
+	];
+	
+	function setMood(e) {
+		e.stopPropagation();
+		props.setM(+e.currentTarget.dataset.mood);
+		setOpen(false);
+	}
+	
+	return (
+		<div class="horseMoodSelect" tabindex={props.tabindex} onClick={() => setOpen(!open)} onBlur={setOpen.bind(null, false)}>
+			<span>
+				<img src={`/uma-tools/icons/global/${moodValues.find(m => m.value === props.m)?.icon}.png`} />
+			</span>
+			<ul style={open ? "display:block" : "display:none"}>
+				{moodValues.map(mood => 
+					<li key={mood.value} data-mood={mood.value} onClick={setMood}>
+						<img src={`/uma-tools/icons/global/${mood.icon}.png`} title={mood.label} />
+					</li>
+				)}
+			</ul>
+		</div>
+	);
+}
+
 export function StrategySelect(props) {
+	const disabled = props.disabled || false;
 	if (CC_GLOBAL) {
 		return (
-			<select class="horseStrategySelect" value={props.s} tabindex={props.tabindex} onInput={(e) => props.setS(e.currentTarget.value)}>
+			<select class="horseStrategySelect" value={props.s} tabindex={props.tabindex} disabled={disabled} onInput={(e) => props.setS(e.currentTarget.value)}>
+				<option value="Oonige">Runaway</option>
 				<option value="Nige">Front Runner</option>
 				<option value="Senkou">Pace Chaser</option>
 				<option value="Sasi">Late Surger</option>
@@ -196,7 +234,7 @@ export function StrategySelect(props) {
 		);
 	}
 	return (
-		<select class="horseStrategySelect" value={props.s} tabindex={props.tabindex} onInput={(e) => props.setS(e.currentTarget.value)}>
+		<select class="horseStrategySelect" value={props.s} tabindex={props.tabindex} disabled={disabled} onInput={(e) => props.setS(e.currentTarget.value)}>
 			<option value="Nige">逃げ</option>
 			<option value="Senkou">先行</option>
 			<option value="Sasi">差し</option>
@@ -253,6 +291,10 @@ export function HorseDef(props) {
 		);
 	}
 
+	function resetThisHorse() {
+		setState(new HorseState());
+	}
+
 	function openSkillPicker(e) {
 		e.stopPropagation();
 		setSkillPickerOpen(true);
@@ -265,7 +307,11 @@ export function HorseDef(props) {
 
 	function handleSkillClick(e) {
 		e.stopPropagation();
-		const se = e.target.closest(".skill, .expandedSkill");
+		// Don't toggle expansion if clicking on position input
+		if (e.target.classList.contains('forcedPositionInput')) {
+			return;
+		}
+		const se = e.target.closest('.skill, .expandedSkill');
 		if (se == null) return;
 		if (e.target.classList.contains("skillDismiss")) {
 			setSkills(state.skills.delete(se.dataset.skillid));
@@ -279,6 +325,17 @@ export function HorseDef(props) {
 		}
 	}
 
+	function handlePositionChange(skillId: string, value: string) {
+		const numValue = parseFloat(value);
+		if (value === '' || isNaN(numValue)) {
+			// Clear the forced position
+			setState(state.set('forcedSkillPositions', state.forcedSkillPositions.delete(skillId)));
+		} else {
+			// Set the forced position
+			setState(state.set('forcedSkillPositions', state.forcedSkillPositions.set(skillId, numValue)));
+		}
+	}
+
 	useEffect(function () {
 		window.requestAnimationFrame(() =>
 			document.querySelectorAll('.horseExpandedSkill').forEach(e => {
@@ -287,23 +344,41 @@ export function HorseDef(props) {
 		);
 	}, [expanded]);
 
+	const hasRunawaySkill = state.skills.has('202051');
+	useEffect(function () {
+		if (hasRunawaySkill && state.strategy !== 'Oonige') {
+			setState(state.set('strategy', 'Oonige'));
+		}
+	}, [hasRunawaySkill, state.strategy]);
+
 	const skillList = useMemo(function () {
 		const u = uniqueSkillForUma(umaId);
 		return Array.from(state.skills).map(id =>
 			expanded.has(id)
 				? <li key={id} class="horseExpandedSkill">
-					  <ExpandedSkillDetails id={id} distanceFactor={props.courseDistance} dismissable={id != u} />
+					  <ExpandedSkillDetails 
+						  id={id} 
+						  distanceFactor={props.courseDistance} 
+						  dismissable={id != u}
+						  forcedPosition={state.forcedSkillPositions.get(id) || ''}
+						  onPositionChange={(value: string) => handlePositionChange(id, value)}
+					  />
 				  </li>
 				: <li key={id} style="">
 					  <Skill id={id} selected={false} dismissable={id != u} />
+						  {state.forcedSkillPositions.has(id) && (
+							  <span class="forcedPositionLabel inline">
+								  @{state.forcedSkillPositions.get(id)}m
+							  </span>
+						  )}
 				  </li>
 		);
-	}, [state.skills, umaId, expanded, props.courseDistance]);
+	}, [state.skills, umaId, expanded, props.courseDistance, state.forcedSkillPositions]);
 
 	return (
 		<div class="horseDef">
 			<div class="horseDefHeader">{props.children}</div>
-			<UmaSelector value={umaId} select={setUma} tabindex={tabnext()} />
+			<UmaSelector value={umaId} select={setUma} tabindex={tabnext()} onReset={resetThisHorse} onResetAll={props.onResetAll} />
 			<div class="horseParams">
 				<div class="horseParamHeader"><img src="/uma-tools/icons/status_00.png" /><span>Speed</span></div>
 				<div class="horseParamHeader"><img src="/uma-tools/icons/status_01.png" /><span>Stamina</span></div>
@@ -326,8 +401,12 @@ export function HorseDef(props) {
 					<AptitudeSelect a={state.distanceAptitude} setA={setter('distanceAptitude')} tabindex={tabnext()} />
 				</div>
 				<div>
+					<span>Mood:</span>
+					<MoodSelect m={state.mood} setM={setter('mood')} tabindex={tabnext()} />
+				</div>
+				<div>
 					<span>{CC_GLOBAL ? 'Style:' : 'Strategy:'}</span>
-					<StrategySelect s={state.strategy} setS={setter('strategy')} tabindex={tabnext()} />
+					<StrategySelect s={state.strategy} setS={setter('strategy')} disabled={hasRunawaySkill} tabindex={tabnext()} />
 				</div>
 				<div>
 					<span>{CC_GLOBAL ? 'Style aptitude:' : 'Strategy aptitude:'}</span>

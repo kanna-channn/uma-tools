@@ -28,3 +28,34 @@
 	stroke: white;
 	stroke-width: 2px;
 }
+
+.drag-textbox {
+	transition: opacity 0.2s ease;
+	cursor: grab !important;
+}
+
+.drag-textbox:hover {
+	opacity: 0.8;
+	cursor: grab !important;
+}
+
+.drag-textbox:active {
+	cursor: grabbing !important;
+	opacity: 0.6;
+}
+
+.drag-textbox text {
+	font-weight: bold;
+}
+
+.poskeep-label text {
+	font-weight: bold;
+	paint-order: stroke;
+	stroke: white;
+	stroke-width: 1px;
+	filter: drop-shadow(0.5px 0.5px 1px rgba(0, 0, 0, 0.3)) opacity(1) !important;
+}
+
+.poskeep-label line {
+	filter: drop-shadow(0.5px 0.5px 1px rgba(0, 0, 0, 0.3)) opacity(1) !important;
+}
