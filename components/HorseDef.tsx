@@ -431,3 +431,5 @@ export function HorseDef(props) {
 		</div>
 	);
 }
+export { HorseState };
+

@@ -328,17 +328,7 @@ function racedefToParams({mood, ground, weather, season, time, grade}: RaceParam
 	};
 }
 
-async function serialize(courseId: number, nsamples: number, seed: number, posKeepMode: PosKeepMode, showHp, racedef: RaceParams, uma1: HorseState, uma2: HorseState, pacer: HorseState, showVirtualPacemakerOnGraph: boolean, pacemakerCount: number, selectedPacemakers: boolean[], witVarianceSettings: {
-	allowRushedUma1: boolean,
-	allowRushedUma2: boolean,
-	allowDownhillUma1: boolean,
-	allowDownhillUma2: boolean,
-	allowSectionModifierUma1: boolean,
-	allowSectionModifierUma2: boolean,
-	allowSkillCheckChanceUma1: boolean,
-	allowSkillCheckChanceUma2: boolean,
-	simWitVariance: boolean
-}) {
+async function serialize(courseId: number, nsamples: number, seed: number, posKeepMode: PosKeepMode, racedef: RaceParams, uma1: HorseState, uma2: HorseState, pacer: HorseState, showVirtualPacemakerOnGraph: boolean, pacemakerCount: number, selectedPacemakers: boolean[], witVarianceSettings: WitVarianceSettings) {
 	const json = JSON.stringify({
 		courseId,
 		nsamples,
@@ -396,8 +386,7 @@ async function deserialize(hash: string): Promise<AppState> {
 					nsamples: o.nsamples,
 					seed: o.seed || DEFAULT_SEED,  // field added later, could be undefined when loading state from existing links
 					posKeepMode: o.posKeepMode != null ? o.posKeepMode : (o.usePosKeep ? PosKeepMode.Approximate : PosKeepMode.None),  // backward compatibility
-					showHp: o.showHp,
-					raceDef: new RaceParams(o.racedef),
+					racedef: new RaceParams(o.racedef),
 					uma1: new HorseState(o.uma1)
 						.set('skills', SkillSet(o.uma1.skills))
 						.set('forcedSkillPositions', ImmMap(o.uma1.forcedSkillPositions || {})),
@@ -428,8 +417,7 @@ async function deserialize(hash: string): Promise<AppState> {
 					nsamples: DEFAULT_SAMPLES,
 					seed: DEFAULT_SEED,
 					posKeepMode: PosKeepMode.Approximate,
-					showHp: true,
-					raceDef: new RaceParams(),
+					racedef: new RaceParams(),
 					uma1: new HorseState(),
 					uma2: new HorseState(),
 					pacer: new HorseState({strategy: 'Nige'}),
@@ -455,17 +443,7 @@ async function deserialize(hash: string): Promise<AppState> {
 	}
 }
 
-async function saveToLocalStorage(courseId: number, nsamples: number, seed: number, posKeepMode: PosKeepMode, racedef: RaceParams, uma1: HorseState, uma2: HorseState, pacer: HorseState, showVirtualPacemakerOnGraph: boolean, pacemakerCount: number, selectedPacemakers: boolean[], witVarianceSettings: {
-	allowRushedUma1: boolean,
-	allowRushedUma2: boolean,
-	allowDownhillUma1: boolean,
-	allowDownhillUma2: boolean,
-	allowSectionModifierUma1: boolean,
-	allowSectionModifierUma2: boolean,
-	allowSkillCheckChanceUma1: boolean,
-	allowSkillCheckChanceUma2: boolean,
-	simWitVariance: boolean
-}) {
+async function saveToLocalStorage(courseId: number, nsamples: number, seed: number, posKeepMode: PosKeepMode, racedef: RaceParams, uma1: HorseState, uma2: HorseState, pacer: HorseState, showVirtualPacemakerOnGraph: boolean, pacemakerCount: number, selectedPacemakers: boolean[], witVarianceSettings: WitVarianceSettings) {
 	try {
 		const hash = await serialize(courseId, nsamples, seed, posKeepMode, racedef, uma1, uma2, pacer, showVirtualPacemakerOnGraph, pacemakerCount, selectedPacemakers, witVarianceSettings);
 		localStorage.setItem('umalator-settings', hash);
@@ -518,8 +496,8 @@ function updateResultsState(state: typeof EMPTY_RESULTS_STATE, o: number | strin
 			courseId: state.courseId,
 			results: o.results,
 			runData: o.runData,
-			chartData: o.runData[state.displaying || 'meanrun'],
-			displaying: state.displaying || 'meanrun',
+			chartData: o.runData[state.displaying || 'medianrun'],
+			displaying: state.displaying || 'medianrun',
 			rushedStats: o.rushedStats || null,
 			spurtInfo: o.spurtInfo || null,
 			staminaStats: o.staminaStats || null,
@@ -567,7 +545,32 @@ function nextUiState(state: typeof DEFAULT_UI_STATE, msg: UiStateMsg) {
 	}
 }
 
-type AppState = {courseId: number, nsamples: number, seed: number, usePosKeep: boolean, showHp: boolean, raceDef: RaceParams, uma1: HorseState, uma2: HorseState};
+type WitVarianceSettings = {
+	allowRushedUma1: boolean,
+	allowRushedUma2: boolean,
+	allowDownhillUma1: boolean,
+	allowDownhillUma2: boolean,
+	allowSectionModifierUma1: boolean,
+	allowSectionModifierUma2: boolean,
+	allowSkillCheckChanceUma1: boolean,
+	allowSkillCheckChanceUma2: boolean,
+	simWitVariance: boolean
+}
+
+type AppState = {
+	courseId: number, 
+	nsamples: number, 
+	seed: number, 
+	posKeepMode: PosKeepMode, 
+	racedef: RaceParams, 
+	uma1: HorseState, 
+	uma2: HorseState, 
+	pacer: HorseState, 
+	showVirtualPacemakerOnGraph: boolean, 
+	pacemakerCount: number, 
+	selectedPacemakers: boolean[], 
+	witVarianceSettings: WitVarianceSettings
+}
 
 function WitVarianceSettingsPopup({ 
 	show, 
@@ -667,7 +670,7 @@ function App(props) {
 	const [runOnceCounter, setRunOnceCounter] = useState(0);
 	const [isSimulationRunning, setIsSimulationRunning] = useState(false);
 	const [posKeepMode, setPosKeepModeRaw] = useState(PosKeepMode.Approximate);
-	const [showHp, setShowHp] = useState(true);
+	const [showHp, toggleShowHp] = useReducer((b,_) => !b, true);
 	
 	useEffect(() => { document.documentElement.classList.toggle('dark', darkMode);}, [darkMode]);
 	//fuck dark mode
@@ -913,7 +916,7 @@ function App(props) {
 
 	function copyStateUrl(e) {
 		e.preventDefault();
-		serialize(courseId, nsamples, seed, posKeepMode, showHp, racedef, uma1, uma2, pacer, showVirtualPacemakerOnGraph, pacemakerCount, getSelectedPacemakers(), {
+		serialize(courseId, nsamples, seed, posKeepMode, racedef, uma1, uma2, pacer, showVirtualPacemakerOnGraph, pacemakerCount, getSelectedPacemakers(), {
 			allowRushedUma1,
 			allowRushedUma2,
 			allowDownhillUma1,
@@ -1465,7 +1468,7 @@ function App(props) {
 	return (
 		<Language.Provider value={props.lang}>
 			<IntlProvider definition={strings}>
-				<div id="topPane" class={chartData ? 'hasResults' : ''}>
+				<div id="topPane" class={chartData ? 'hasResults dark' : 'dark'}>
 					<RaceTrack courseid={courseId} width={960} height={240} xOffset={20} yOffset={15} yExtra={20} mouseMove={rtMouseMove} mouseLeave={rtMouseLeave} onSkillDrag={handleSkillDrag} regions={[...skillActivations, ...rushedIndicators]} posKeepLabels={posKeepLabels} uma1={uma1} uma2={uma2} pacer={pacer}>
 						<VelocityLines data={chartData} courseDistance={course.distance} width={960} height={250} xOffset={20} showHp={showHp} showVirtualPacemaker={showVirtualPacemakerOnGraph && posKeepMode === PosKeepMode.Virtual} selectedPacemakers={getSelectedPacemakers()} />
 						
@@ -1495,12 +1498,12 @@ function App(props) {
 						</fieldset>
 						{
 							mode == Mode.Compare
-							? <button id="run" onClick={doComparison} tabindex={1} disabled={isSimulationRunning}>COMPARE</button>
-							: <button id="run" onClick={doBasinnChart} tabindex={1} disabled={isSimulationRunning}>RUN</button>
+							? <button id="run" onClick={doComparison} tabindex={1} class={isSimulationRunning ? 'isSimulationRunning' : ''}>COMPARE</button>
+							: <button id="run" onClick={doBasinnChart} tabindex={1} class={isSimulationRunning ? 'isSimulationRunning' : ''}>RUN</button>
 						}
 						{
 							mode == Mode.Compare
-							? <button id="runOnce" onClick={doRunOnce} tabindex={1} disabled={isSimulationRunning}>Run Once</button>
+							? <button id="runOnce" onClick={doRunOnce} tabindex={1} class={isSimulationRunning ? 'isSimulationRunning' : ''}>Run Once</button>
 							: null
 						}
 						<label for="nsamples">Samples:</label>
