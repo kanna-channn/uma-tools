@@ -49,8 +49,6 @@ export function HorseStateStorageBox({ uma1, setUma1, uma2, setUma2, storageKey 
         } catch (e) {
         }
     }
-    console.log(storedData)
-    console.log(umas)
 
     return (
         <div style={{ border: '1px solid', padding: 12, borderRadius: 6, margin: 8 }}>

@@ -44,7 +44,7 @@ const DEFAULT_SEED = 2615953739;
 
 
 class RaceParams extends Record({
-	mood: 2 as Mood,
+	mood: 0 as Mood,
 	ground: GroundCondition.Good,
 	weather: Weather.Sunny,
 	season: Season.Spring,
@@ -55,9 +55,11 @@ class RaceParams extends Record({
 const enum EventType { CM, LOH }
 
 const presets = (CC_GLOBAL ? [
-	{type: EventType.CM, date: '2025-10', courseId: 10602, season: Season.Summer, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
-	{type: EventType.CM, date: '2025-09', courseId: 10811, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
-	{type: EventType.CM, date: '2025-08', courseId: 10606, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday}
+	{type: EventType.CM, name: 'Virgo Cup', date: '2025-11-16', courseId: 10903, season: Season.Autumn, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Leo Cup', date: '2025-10-30', courseId: 10906, season: Season.Summer, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Cancer Cup', date: '2025-10-07', courseId: 10602, season: Season.Summer, ground: GroundCondition.Yielding, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Gemini Cup', date: '2025-09', courseId: 10811, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday},
+	{type: EventType.CM, name: 'Taurus Cup', date: '2025-08', courseId: 10606, season: Season.Spring, ground: GroundCondition.Good, weather: Weather.Sunny, time: Time.Midday}
 ] : [
 	{type: EventType.LOH, date: '2025-11', courseId: 11502, season: Season.Autumn, time: Time.Midday},
 	{type: EventType.CM, date: '2025-10', courseId: 10302, season: Season.Autumn, ground: GroundCondition.Good, weather: Weather.Cloudy, time: Time.Midday},
@@ -68,10 +70,11 @@ const presets = (CC_GLOBAL ? [
 ])
 	.map(def => ({
 		type: def.type,
+		name: def.name,
 		date: new Date(def.date),
 		courseId: def.courseId,
 		racedef: new RaceParams({
-			mood: 2 as Mood,
+			mood: 0 as Mood,
 			ground: def.type == EventType.CM ? def.ground : GroundCondition.Good,
 			weather: def.type == EventType.CM ? def.weather : Weather.Sunny,
 			season: def.season,
@@ -509,12 +512,13 @@ function updateResultsState(state: typeof EMPTY_RESULTS_STATE, o: number | strin
 
 function RacePresets(props) {
 	const id = useId();
+	const selectedIdx = presets.findIndex(p => p.courseId == props.courseId && p.racedef.equals(props.racedef));
 	return (
 		<Fragment>
 			<label for={id}>Preset:</label>
 			<select id={id} onChange={e => { const i = +e.currentTarget.value; i > -1 && props.set(presets[i].courseId, presets[i].racedef); }}>
 				<option value="-1"></option>
-				{presets.map((p,i) => <option value={i}>{p.date.getFullYear() + '-' + (100 + p.date.getUTCMonth() + 1).toString().slice(-2) + (p.type == EventType.CM ? ' CM' : ' LOH')}</option>)}
+				{presets.map((p,i) => <option value={i} selected={i == selectedIdx}>{p.name || (p.date.getFullYear() + '-' + (100 + p.date.getUTCMonth() + 1).toString().slice(-2) + (p.type == EventType.CM ? ' CM' : ' LOH'))}</option>)}
 			</select>
 		</Fragment>
 	);
@@ -1594,7 +1598,7 @@ function App(props) {
 						</div>
 
 						<a href="#" onClick={copyStateUrl}>Copy link</a>
-						<RacePresets set={(courseId, racedef) => { setCourseId(courseId); setRaceDef(racedef); }} />
+						<RacePresets courseId={courseId} racedef={racedef} set={(courseId, racedef) => { setCourseId(courseId); setRaceDef(racedef); }} />
 						<div>
 							{
 								Array.from({ length: 15 }, (_, i) => (

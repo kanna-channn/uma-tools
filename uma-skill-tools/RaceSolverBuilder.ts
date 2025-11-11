@@ -416,7 +416,7 @@ export class RaceSolverBuilder {
 	constructor(readonly nsamples: number) {
 		this._course = null;
 		this._raceParams = {
-			mood: 2,
+			mood: 0,
 			groundCondition: GroundCondition.Good,
 			weather: Weather.Sunny,
 			season: Season.Spring,
