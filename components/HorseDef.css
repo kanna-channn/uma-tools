@@ -1,5 +1,5 @@
 .horseDef {
-    background: var(--background-color-muted);
+	background: var(--background-color-muted);
 	border: 2px solid var(--border-color-default);
 	border-radius: 12px;
 	box-sizing: border-box;
