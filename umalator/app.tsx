@@ -819,11 +819,7 @@ function App(props) {
 		return w;
 	}, []));
 
-	const stateIsRecord = (state: any): state is Record<any> => {
-		return state instanceof Record;
-	}
-
-	const loadLocationHash = async () => {
+	const loadState = async () => {
 		if (window.location.hash) {
 			deserialize(window.location.hash.slice(1)).then(o => {
 				setCourseId(o.courseId);
