@@ -36,6 +36,7 @@ function skillmeta(id: string) {
 }
 
 import './app.css';
+import { HorseStateStorageBox } from './components/databox';
 
 const DEFAULT_SAMPLES = 500;
 const DEFAULT_SEED = 2615953739;
@@ -1464,6 +1465,19 @@ function App(props) {
 	return (
 		<Language.Provider value={props.lang}>
 			<IntlProvider definition={strings}>
+				<div>
+					{
+						Array.from({ length: 6 }, (_, i) => (
+							<HorseStateStorageBox
+								uma1={uma1}
+								setUma1={setUma1}
+								uma2={uma2}
+								setUma2={setUma2}
+								storageKey={`uma${i + 1}`}
+							/>
+						))
+					}
+				</div>
 				<div id="topPane" class={chartData ? 'hasResults dark' : 'dark'}>
 					<RaceTrack courseid={courseId} width={960} height={240} xOffset={20} yOffset={15} yExtra={20} mouseMove={rtMouseMove} mouseLeave={rtMouseLeave} onSkillDrag={handleSkillDrag} regions={[...skillActivations, ...rushedIndicators]} posKeepLabels={posKeepLabels} uma1={uma1} uma2={uma2} pacer={pacer}>
 						<VelocityLines data={chartData} courseDistance={course.distance} width={960} height={250} xOffset={20} showHp={showHp} showVirtualPacemaker={showVirtualPacemakerOnGraph && posKeepMode === PosKeepMode.Virtual} selectedPacemakers={getSelectedPacemakers()} />
