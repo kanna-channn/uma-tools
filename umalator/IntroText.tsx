@@ -24,7 +24,7 @@ export function IntroText(props) {
 	return (
 		<div id="introtext">
 			<h1>WELCOME TO VFalator!!!</h1>
-			<p className="warning-text">11/11 update: Duels/Spot Struggle are not currently implemented - we are working on this.</p>
+			<p className="warning-text">11/11 update: Duels have not yet been implemented - everything else should work as expected.</p>
 			<h2 className="warning-text">Warning: the enhancements made to this umalator fork enables usage of the tool as a more comprehensive race simulator, to simulate raw skill length differences without RNG factors <strong>set 'Position Keep' to 'Approximate'</strong> and <strong>turn off 'Wit Variance'</strong></h2>
 			<p className="warning-text">Raw skill length comparisons, as per the original umalator, have been battle-tested on JP and remain largely accurate. New additions such as Wit Variance and Virtual Pacemaker are experimental and results with these features should be taken with a grain of salt.</p>
 			<details>
@@ -34,7 +34,7 @@ export function IntroText(props) {
 					<h1>jechtoff2dudes</h1>
 					<p>Frontrunner Overtake/Speedup mode, Dragging Skill Markers, Downhills, Skill Activation check</p>
 					<h1>Kachi</h1>
-					<p>Fixing all the bugs and UI issues, mood, UI improvements, rewriting poskeep, reworking RNG, uniques chart (utools at home)</p>
+					<p>Fixing all the bugs and UI issues, mood, UI improvements, rewriting poskeep, reworking RNG, uniques chart (utools at home), spot struggle/dueling, lane movement</p>
 			</details>
 
 
@@ -45,6 +45,22 @@ export function IntroText(props) {
 				<summary>Caveats</summary>
 				The simulator is fairly complete and implements nearly all relevant game mechanics, with the following exceptions:
 				<ul>
+					<li>
+						<details>
+							<summary>Spot Struggle ignores LaneGap activation condition and is based solely on the distance between umas.</summary>
+							<p>Due to the difficulty of accurately simulating lane movement, Spot Struggle is activated when two or more Front Runner umas are within 3.75m of one another (5m for Runaway).</p>
+							<p>We do simulate lane movement, however, this is simply an approximation for the purpose of determining the effectiveness of lane movement skills post 1st-anniversary.</p>
+						</details>
+					</li>
+
+					<li>
+						<details>
+							<summary>Early-race lane movement is simulated approximately as this mechanic is dependent on other umas in the race.</summary>
+							<p>Specifically, your lane movement largely depends on overtake targets and blocking.</p>
+							<p>We have used logic from the mee1080 race simulator to approximate lane movement for the purposes of observing the effect of certain lane movement skills, however, it is not accurate enough to use for mechanics like Spot Struggle and Dueling.</p>
+						</details>
+					</li>
+
 					<li>
 						<details>
 							<summary>Pseudo-random skills based on the location of other umas use a best-effort estimation for the distribution of their activation locations which may not be perfectly reflective of in-game behavior in all circumstances</summary>
@@ -65,13 +81,23 @@ export function IntroText(props) {
 							Unique skills are always simulated as a base level 3★ unique.
 						</details>
 					</li>
-					
-					<li>Motivation is always assumed to be maximum</li>
 				</ul>
 				By and large it should be highly accurate. It has been battle-tested on the JP server for several years. Please use this if you KNOW what the hell you are doing.
 			</details>
 			<details>
 				<summary>Changelog</summary>
+				<section>
+					<h2>2025-11-14</h2>
+					<ul>
+						<li>Updated skill/uma/track data to latest global version.</li>
+						<li>Added Spot Struggle simulation.</li>
+						<li>Added basic lane movement simulation (primarily for Dodging Danger/Prudent Positioning).</li>
+						<li>Added spurt/stamina survival rate. Initial comparisons with in-game spurt rate shows that vfalator is actually more accurate than mee1080, but more testing is needed.</li>
+						<li>Fixed start delay logic.</li>
+						<li>Fixed early-race velocity bug causing umas to accelerate faster than they should.</li>
+						<li>... and probably other stuffs I forgot since there hasn't been a changelog in a while...</li>
+					</ul>
+				</section>
 				<section>
 					<h2>2025-10-09</h2>
 					<ul>

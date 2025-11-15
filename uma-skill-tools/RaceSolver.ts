@@ -5,6 +5,7 @@ import { CourseData, CourseHelpers, Phase } from './CourseData';
 import { Region } from './Region';
 import { PRNG, Rule30CARng } from './Random';
 import type { HpPolicy } from './HpPolicy';
+import { ApproximateCondition, ApproximateMultiCondition, ApproximateStartContinue, ConditionEntry } from './ApproximateStartContinue';
 
 declare var CC_GLOBAL: boolean
 
@@ -14,6 +15,7 @@ declare var CC_GLOBAL: boolean
 // replaced by the define
 // not entirely happy with this solution
 if (typeof CC_GLOBAL == "undefined") global.CC_GLOBAL = false;
+
 
 namespace Speed {
 	export const StrategyPhaseCoefficient = Object.freeze([
@@ -60,7 +62,6 @@ namespace Acceleration {
 
 const BaseAccel = 0.0006;
 const UphillBaseAccel = 0.0004;
-
 
 function baseAccel(baseAccel: number, horse: HorseParameters, phase: Phase) {
 	return baseAccel * Math.sqrt(500.0 * horse.power) *
@@ -152,7 +153,9 @@ export const enum SkillType {
 	CurrentSpeed = 21,
 	CurrentSpeedWithNaturalDeceleration = 22,
 	TargetSpeed = 27,
+	LaneMovementSpeed = 28,
 	Accel = 31,
+	ChangeLane = 35,
 	ActivateRandomGold = 37,
 	ExtendEvolvedDuration = 42
 }
@@ -231,7 +234,6 @@ export class RaceSolver {
 	hp: HpPolicy
 	rng: PRNG
 	syncRng: PRNG
-	synchronizedSeed: number
 	gorosiRng: PRNG
 	rushedRng: PRNG
 	downhillRng: PRNG
@@ -248,6 +250,8 @@ export class RaceSolver {
 	activeTargetSpeedSkills: ActiveSkill[]
 	activeCurrentSpeedSkills: (ActiveSkill & {naturalDeceleration: boolean})[]
 	activeAccelSkills: ActiveSkill[]
+	activeLaneMovementSkills: ActiveSkill[]
+	activeChangeLaneSkills: ActiveSkill[]
 	pendingSkills: PendingSkill[]
 	pendingRemoval: Set<string>
 	usedSkills: Set<string>
@@ -308,6 +312,13 @@ export class RaceSolver {
 	leadCompetitionStart: number | null
 	leadCompetitionEnd: number | null
 	leadCompetitionTimer: Timer
+	
+	// lane movement..........
+	currentLane: number
+    targetLane: number
+    laneChangeSpeed: number
+    extraMoveLane: number
+    forceInSpeed: number
 
 	firstUmaInLateRace: boolean
 
@@ -322,6 +333,10 @@ export class RaceSolver {
 		specialSkillDurationScaling: number
 	}
 
+	private conditionTimer: Timer
+	private conditionValues: Map<string, number> = new Map()
+	private conditions: Map<string, ApproximateCondition> = new Map()
+
 	constructor(params: {
 		horse: HorseParameters,
 		course: CourseData,
@@ -335,7 +350,6 @@ export class RaceSolver {
 		disableSectionModifier?: boolean,
 		speedUpProbability?: number,
 		skillCheckChance?: boolean,
-		synchronizedSeed?: number,
 		posKeepMode?: PosKeepMode,
 		isPacer?: boolean,
 	}) {
@@ -347,13 +361,13 @@ export class RaceSolver {
 		this.pendingSkills = params.skills.slice();  // copy since we remove from it
 		this.pendingRemoval = new Set();
 		this.usedSkills = new Set();
-		this.synchronizedSeed = params.synchronizedSeed != null ? params.synchronizedSeed : this.rng.int32();
-		this.syncRng = new Rule30CARng(this.synchronizedSeed);
+		this.syncRng = new Rule30CARng(this.rng.int32());
 		this.gorosiRng = new Rule30CARng(this.rng.int32());
 		this.rushedRng = new Rule30CARng(this.rng.int32());
 		this.downhillRng = new Rule30CARng(this.rng.int32());
 		this.wisdomRollRng = new Rule30CARng(this.rng.int32());
 		this.timers = [];
+		this.conditionTimer = this.getNewTimer(-1.0);
 		this.accumulatetime = this.getNewTimer();
 		// bit of a hack because implementing post_number is surprisingly annoying, since we don't have RaceParameters.numUmas available here
 		// and can't draw random numbers in the conditions. instead what we do is draw a random number here that decides the gate, and then
@@ -370,6 +384,8 @@ export class RaceSolver {
 		this.activeTargetSpeedSkills = [];
 		this.activeCurrentSpeedSkills = [];
 		this.activeAccelSkills = [];
+		this.activeLaneMovementSkills = [];
+		this.activeChangeLaneSkills = [];
 		this.activateCount = [0,0,0];
 		this.activateCountHeal = 0;
 		this.onSkillActivate = params.onSkillActivate || noop;
@@ -383,7 +399,7 @@ export class RaceSolver {
 		this.posKeepStrategy = this.horse.strategy;
 		// In approximate mode, all we care about is the consistent early-race pace-down we get
 		// But in full virtual pacemaker mode, we sim the entire poskeep section
-		this.posKeepEnd = this.sectionLength * (this.posKeepMode === PosKeepMode.Approximate ? 5.0 : 10.0);
+		this.posKeepEnd = this.sectionLength * 10.0;
 		this.posKeepSpeedCoef = 1.0;
 		this.isPacer = params.isPacer || false;
 		this.pacerOverride = false;
@@ -427,6 +443,16 @@ export class RaceSolver {
 		this.leadCompetitionEnd = null;
 		this.leadCompetitionTimer = this.getNewTimer();
 
+		const gateNumberRaw = this.gateRoll % 9;
+		const gateNumber = gateNumberRaw < 9 ? gateNumberRaw : 1 + (24 - gateNumberRaw) % 8;
+		const initialLane = gateNumber * this.course.horseLane;
+
+		this.currentLane = initialLane;
+		this.targetLane = initialLane;
+		this.laneChangeSpeed = 0.0;
+		this.extraMoveLane = -1.0;
+		this.forceInSpeed = 0.0;
+
 		this.modifiers = {
 			targetSpeed: new CompensatedAccumulator(0.0),
 			currentSpeed: new CompensatedAccumulator(0.0),
@@ -468,6 +494,41 @@ export class RaceSolver {
 		this.hp.init(this.horse);
 
 		this.baseAccel = ([0,1,2,0,1,2] as Phase[]).map((phase,i) => baseAccel(i > 2 ? UphillBaseAccel : BaseAccel, this.horse, phase));
+
+		this.registerBlockedSideCondition();
+	}
+
+	private registerBlockedSideCondition(): void {
+		const conditions: ConditionEntry[] = [
+			{
+				condition: new ApproximateStartContinue("Outer lane", 0.0, 0.0),
+				predicate: (state: any) => {
+					const sim = state.simulation;
+					const section = Math.floor(sim.pos / sim.sectionLength);
+					return section >= 1 && section <= 3 && sim.currentLane > 3.0 * this.course.horseLane;
+				}
+			},
+			{
+				condition: new ApproximateStartContinue("Early race", 0.1, 0.85),
+				predicate: (state: any) => state.simulation.phase === 0
+			},
+			{
+				condition: new ApproximateStartContinue("Mid race", 0.08, 0.75),
+				predicate: (state: any) => state.simulation.phase === 1
+			},
+			{
+				condition: new ApproximateStartContinue("Other", 0.07, 0.50),
+				predicate: null
+			}
+		];
+
+		const blockedSideCondition = new ApproximateMultiCondition(
+			"blocked_side",
+			conditions,
+			1
+		);
+
+		this.registerCondition("blocked_side", blockedSideCondition);
 	}
 
 	initUmas(umas: RaceSolver[]) {
@@ -589,6 +650,11 @@ export class RaceSolver {
 
 		this.timers.forEach(tm => tm.t += dt);
 
+		if (this.conditionTimer.t >= 0.0) {
+			this.tickConditions();
+			this.conditionTimer.t = -1.0;
+		}
+
 		if (this.startDelayAccumulator > 0.0) {
 			this.startDelayAccumulator -= dt;
 
@@ -605,10 +671,11 @@ export class RaceSolver {
 		this.applyPositionKeepStates();
 		this.updatePositionKeepCoefficient();
 		// this.updateCompeteFight();
-		// this.updateLeadCompetition();
+		this.updateLeadCompetition();
 		this.updateLastSpurtState();
 		this.updateTargetSpeed();
 		this.applyForces();
+		this.applyLaneMovement();
 
 		this.currentSpeed = Math.min(this.currentSpeed + this.accel * dt, this.getMaxSpeed());
 
@@ -636,6 +703,56 @@ export class RaceSolver {
 		}
 
 		this.modifiers.oneFrameAccel = 0.0;
+	}
+
+	applyLaneMovement() {
+		const currentLane = this.currentLane
+		const sideBlocked = this.getConditionValue("blocked_side") === 1;
+		// TODO: Simulate 'overtake' condition to prevent umas from getting stuck on inside rail late-race
+		// At the moment this doesn't matter because all we care about is early-race behavior.
+
+		if (this.extraMoveLane < 0.0 && this.isAfterFinalCornerOrInFinalStraight()) {
+			this.extraMoveLane = Math.min(currentLane / 0.1, this.course.maxLaneDistance) * 0.5 + (this.rng.random() * 0.1);
+		}
+
+		if (this.activeChangeLaneSkills.length > 0) {
+			this.targetLane = 9.5 * this.course.horseLane;
+		}
+		else if (!this.hp.hasRemainingHp()) {
+			this.targetLane = currentLane;
+		}
+		else if (this.positionKeepState === PositionKeepState.PaceDown) {
+			this.targetLane = 0.18;
+		}
+		else if (this.extraMoveLane > currentLane) {
+			this.targetLane = this.extraMoveLane;
+		}
+		else if (this.phase <= 1 && !sideBlocked) {
+			this.targetLane = Math.max(0.0, currentLane - 0.05);
+		}
+		else {
+			this.targetLane = currentLane;
+		}
+
+		if ((sideBlocked && this.targetLane < currentLane) || Math.abs(this.targetLane - currentLane) < 0.00001) {
+			this.laneChangeSpeed = 0.0
+		} else {
+			let targetSpeed = 0.02 * (0.3 + 0.001 * this.horse.power);
+
+			if (this.pos < this.course.moveLanePoint) {
+				targetSpeed *= (1 + currentLane / this.course.maxLaneDistance * 0.05);
+			}
+
+			this.laneChangeSpeed = Math.min(this.laneChangeSpeed + this.course.laneChangeAccelerationPerFrame, targetSpeed);
+
+			let actualSpeed = Math.min(this.laneChangeSpeed + this.activeLaneMovementSkills.reduce((sum, skill) => sum + skill.modifier, 0), 0.6);
+			
+			if (this.targetLane > currentLane) {
+				this.currentLane = Math.min(this.targetLane, currentLane + actualSpeed);
+			} else {
+				this.currentLane = Math.max(this.targetLane, currentLane - actualSpeed * (1.0 + currentLane));
+			}
+		}
 	}
 
 	// Slightly scuffed way of ensuring all umas use the same pacemaker
@@ -890,6 +1007,15 @@ export class RaceSolver {
 		return this.pos >= lastStraight.start && this.pos <= lastStraight.end;
 	}
 
+	isAfterFinalCorner() {
+		const finalCornerStart = this.course.corners.length > 0 ? this.course.corners[this.course.corners.length - 1].start : Infinity;
+		return this.pos >= finalCornerStart;
+	}
+
+	isAfterFinalCornerOrInFinalStraight() {
+		return this.isAfterFinalCorner() || this.isOnFinalStraight();
+	}
+
 	updateCompeteFight() {
 		if (this.competeFight) {
 			if (this.hp.hpRatioRemaining() <= 0.05) {
@@ -928,11 +1054,20 @@ export class RaceSolver {
 			return;
 		}
 
-		if (this.pos >= 200 && (StrategyHelpers.strategyMatches(this.posKeepStrategy, Strategy.Nige))) {
-			this.leadCompetitionTimer.t = 0;
-			this.leadCompetition = true;
-			this.leadCompetitionStart = this.pos;
-			this.leadCompetitionEnd = Math.floor(this.sectionLength * 8);
+		if (this.pos >= 150 && this.pos <= Math.floor(this.sectionLength * 5) && (StrategyHelpers.strategyMatches(this.posKeepStrategy, Strategy.Nige))) {
+			let otherUmas = this.umas.filter(u => u.posKeepStrategy === this.posKeepStrategy);
+			let distanceGap = this.posKeepStrategy === Strategy.Nige ? 3.75 : 5;
+
+			let umasWithinGap = otherUmas.filter(u => Math.abs(u.pos - this.pos) <= distanceGap);
+
+			if (umasWithinGap.length >= 2) {
+				for (let uma of umasWithinGap) {
+					uma.leadCompetitionTimer.t = 0;
+					uma.leadCompetition = true;
+					uma.leadCompetitionStart = uma.pos;
+					uma.leadCompetitionEnd = uma.pos + Math.floor(this.sectionLength * 8);
+				}
+			}
 		}
 	}
 
@@ -1043,6 +1178,11 @@ export class RaceSolver {
 				this.targetSpeed += downhillBonus;
 			}
 		}
+
+		if (this.laneChangeSpeed > 0.0 && this.activeLaneMovementSkills.length > 0) {
+			const moveLaneModifier = Math.sqrt(0.0002 * this.horse.power);
+			this.targetSpeed += moveLaneModifier;
+		}
 	}
 
 	applyForces() {
@@ -1112,6 +1252,20 @@ export class RaceSolver {
 			if (s.durationTimer.t >= 0) {
 				this.activeAccelSkills.splice(i,1);
 				this.modifiers.accel.add(-s.modifier);
+				this.onSkillDeactivate(this, s.skillId, s.perspective);
+			}
+		}
+		for (let i = this.activeLaneMovementSkills.length; --i >= 0;) {
+			const s = this.activeLaneMovementSkills[i];
+			if (s.durationTimer.t >= 0) {
+				this.activeLaneMovementSkills.splice(i,1);
+				this.onSkillDeactivate(this, s.skillId, s.perspective);
+			}
+		}
+		for (let i = this.activeChangeLaneSkills.length; --i >= 0;) {
+			const s = this.activeChangeLaneSkills[i];
+			if (s.durationTimer.t >= 0) {
+				this.activeChangeLaneSkills.splice(i,1);
 				this.onSkillDeactivate(this, s.skillId, s.perspective);
 			}
 		}
@@ -1197,6 +1351,9 @@ export class RaceSolver {
 				this.modifiers.accel.add(ef.modifier);
 				this.activeAccelSkills.push({skillId: s.skillId, perspective: s.perspective, durationTimer: this.getNewTimer(-scaledDuration), modifier: ef.modifier});
 				break;
+			case SkillType.LaneMovementSpeed:
+				this.activeLaneMovementSkills.push({skillId: s.skillId, perspective: s.perspective, durationTimer: this.getNewTimer(-scaledDuration), modifier: ef.modifier});
+				break;
 			case SkillType.CurrentSpeed:
 			case SkillType.CurrentSpeedWithNaturalDeceleration:
 				this.modifiers.currentSpeed.add(ef.modifier);
@@ -1218,6 +1375,9 @@ export class RaceSolver {
 				break;
 			case SkillType.ExtendEvolvedDuration:
 				this.modifiers.specialSkillDurationScaling = ef.modifier;
+				break;
+			case SkillType.ChangeLane:
+				this.activeChangeLaneSkills.push({skillId: s.skillId, perspective: s.perspective, durationTimer: this.getNewTimer(-scaledDuration), modifier: ef.modifier});
 				break;
 			}
 		});
@@ -1255,5 +1415,41 @@ export class RaceSolver {
 		this.activeTargetSpeedSkills.forEach(callDeactivateHook);
 		this.activeCurrentSpeedSkills.forEach(callDeactivateHook);
 		this.activeAccelSkills.forEach(callDeactivateHook);
+		this.activeLaneMovementSkills.forEach(callDeactivateHook);
+		this.activeChangeLaneSkills.forEach(callDeactivateHook);
+	}
+
+	registerCondition(name: string, condition: ApproximateCondition): void {
+		this.conditions.set(name, condition);
+
+		if (!this.conditionValues.has(name)) {
+			this.conditionValues.set(name, condition.valueOnStart);
+		}
+	}
+
+	getConditionValue(name: string): number {
+		if (!this.conditionValues.has(name)) {
+			if (this.conditions.has(name)) {
+				const condition = this.conditions.get(name)!;
+				return condition.valueOnStart;
+			}
+
+			throw new Error(`Condition "${name}" is not registered`);
+		}
+
+		return this.conditionValues.get(name)!;
+	}
+
+
+	tickConditions(): void {
+		const state = {
+			simulation: this
+		};
+
+		for (const [name, condition] of this.conditions.entries()) {
+			const currentValue = this.conditionValues.get(name) ?? condition.valueOnStart;
+			const newValue = condition.update(state, currentValue);
+			this.conditionValues.set(name, newValue);
+		}
 	}
 }
