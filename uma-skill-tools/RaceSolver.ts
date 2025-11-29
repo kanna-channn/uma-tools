@@ -5,7 +5,8 @@ import { CourseData, CourseHelpers, Phase } from './CourseData';
 import { Region } from './Region';
 import { PRNG, Rule30CARng } from './Random';
 import type { HpPolicy } from './HpPolicy';
-import { ApproximateCondition, ApproximateMultiCondition, ApproximateStartContinue, ConditionEntry } from './ApproximateStartContinue';
+import { ApproximateCondition } from './ApproximateConditions';
+import { createBlockedSideCondition, createOvertakeCondition } from './SpecialConditions';
 
 declare var CC_GLOBAL: boolean
 
@@ -240,6 +241,7 @@ export class RaceSolver {
 	wisdomRollRng: PRNG
 	posKeepRng: PRNG
 	laneMovementRng: PRNG
+	specialConditionRng: PRNG
 	timers: Timer[]
 	startDash: boolean
 	startDelay: number
@@ -326,7 +328,10 @@ export class RaceSolver {
 	firstUmaInLateRace: boolean
 
 	hpDied: boolean
+	hpDiedPosition: number | null
 	fullSpurt: boolean
+	nonFullSpurtVelocityDiff: number | null
+	nonFullSpurtDelayDistance: number | null
 
 	modifiers: {
 		targetSpeed: CompensatedAccumulator
@@ -372,6 +377,7 @@ export class RaceSolver {
 		this.wisdomRollRng = new Rule30CARng(this.rng.int32());
 		this.posKeepRng = new Rule30CARng(this.rng.int32());
 		this.laneMovementRng = new Rule30CARng(this.rng.int32());
+		this.specialConditionRng = new Rule30CARng(this.rng.int32());
 		this.timers = [];
 		this.conditionTimer = this.getNewTimer(-1.0);
 		this.accumulatetime = this.getNewTimer();
@@ -438,7 +444,10 @@ export class RaceSolver {
 		this.positionKeepActivations = [];
 		this.firstUmaInLateRace = false;
 		this.hpDied = false;
+		this.hpDiedPosition = null;
 		this.fullSpurt = false;
+		this.nonFullSpurtVelocityDiff = null;
+		this.nonFullSpurtDelayDistance = null;
 		// Calculate rushed chance and determine if/when it activates
 		this.initRushedState(params.disableRushed || false);
 
@@ -504,69 +513,8 @@ export class RaceSolver {
 
 		this.baseAccel = ([0,1,2,0,1,2] as Phase[]).map((phase,i) => baseAccel(i > 2 ? UphillBaseAccel : BaseAccel, this.horse, phase));
 
-		this.registerBlockedSideCondition();
-		this.registerOvertakeCondition();
-	}
-
-	private registerBlockedSideCondition(): void {
-		const conditions: ConditionEntry[] = [
-			{
-				condition: new ApproximateStartContinue("Outer lane", 0.0, 0.0),
-				predicate: (state: any) => {
-					const sim = state.simulation;
-					const section = Math.floor(sim.pos / sim.sectionLength);
-					return section >= 1 && section <= 3 && sim.currentLane > 3.0 * this.course.horseLane;
-				}
-			},
-			{
-				condition: new ApproximateStartContinue("Early race", 0.1, 0.85),
-				predicate: (state: any) => state.simulation.phase === 0
-			},
-			{
-				condition: new ApproximateStartContinue("Mid race", 0.08, 0.75),
-				predicate: (state: any) => state.simulation.phase === 1
-			},
-			{
-				condition: new ApproximateStartContinue("Other", 0.07, 0.50),
-				predicate: null
-			}
-		];
-
-		const blockedSideCondition = new ApproximateMultiCondition(
-			"blocked_side",
-			conditions,
-			1
-		);
-
-		this.registerCondition("blocked_side", blockedSideCondition);
-	}
-
-	private registerOvertakeCondition(): void {
-		const conditions: ConditionEntry[] = [
-			{
-				condition: new ApproximateStartContinue("逃げ", 0.05, 0.50),
-				predicate: (state: any) => {
-					return state.simulation.horse.strategy === Strategy.Nige;
-				}
-			},
-			{
-				condition: new ApproximateStartContinue("先行", 0.15, 0.55),
-				predicate: (state: any) => {
-					return state.simulation.horse.strategy === Strategy.Senkou;
-				}
-			},
-			{
-				condition: new ApproximateStartContinue("その他", 0.20, 0.60),
-				predicate: null
-			}
-		];
-
-		const overtakeCondition = new ApproximateMultiCondition(
-			"overtake",
-			conditions
-		);
-
-		this.registerCondition("overtake", overtakeCondition);
+		this.registerCondition("blocked_side", createBlockedSideCondition());
+		this.registerCondition("overtake", createOvertakeCondition());
 	}
 
 	initUmas(umas: RaceSolver[]) {
@@ -662,17 +610,8 @@ export class RaceSolver {
 		}
 	}
 
-	getMaxSpeed() {
-		if (this.startDash) {
-			// target speed can be below 0.85 * BaseSpeed for non-runners if there is a hill at the start of the course
-			// in this case you actually don't exit start dash until your target speed is high enough to be over 0.85 * BaseSpeed
-			return Math.min(this.targetSpeed, 0.85 * baseSpeed(this.course));
-		} else  if (this.currentSpeed + this.modifiers.oneFrameAccel > this.targetSpeed) {
-			return 9999.0;  // allow decelerating if targetSpeed drops
-		} else {
-			return this.targetSpeed;
-		}
-		// technically, there's a hard cap of 30m/s, but there's no way to actually hit that without implementing the Pace Up Ex position keep mode
+	getMaxStartDashSpeed() {
+		return Math.min(this.targetSpeed, 0.85 * baseSpeed(this.course));
 	}
 
 	logVelocityData(dt: number) {
@@ -715,11 +654,24 @@ export class RaceSolver {
 		this.applyForces();
 		this.applyLaneMovement();
 
-		this.currentSpeed = Math.min(this.currentSpeed + this.accel * dt, this.getMaxSpeed());
+		let newSpeed = undefined;
 
-		if (!this.startDash && this.currentSpeed < this.minSpeed) {
-			this.currentSpeed = this.minSpeed;
+		if (this.currentSpeed < this.targetSpeed) {
+			newSpeed = Math.min(this.currentSpeed + this.accel * dt, this.targetSpeed);
 		}
+		else {
+			newSpeed = Math.max(this.currentSpeed + this.accel * dt, this.targetSpeed);
+		}
+
+		if (this.startDash && newSpeed > this.getMaxStartDashSpeed()) {
+			newSpeed = this.getMaxStartDashSpeed();
+		}
+		
+		if (!this.startDash && this.currentSpeed < this.minSpeed) {
+			newSpeed = this.minSpeed;
+		}
+
+		this.currentSpeed = newSpeed;
 
 		const displacement = this.currentSpeed + this.modifiers.currentSpeed.acc + this.modifiers.currentSpeed.err;
 
@@ -733,6 +685,7 @@ export class RaceSolver {
 
 		if (!this.hp.hasRemainingHp() && !this.hpDied) {
 			this.hpDied = true;
+			this.hpDiedPosition = this.course.distance - this.pos;
 		}
 
 		if (this.startDash && this.currentSpeed >= 0.85 * baseSpeed(this.course)) {
@@ -1130,11 +1083,15 @@ export class RaceSolver {
 	updateLastSpurtState() {
 		if (this.isLastSpurt || this.phase < 2) return;
 		if (this.lastSpurtTransition == -1) {
+			const initialLastSpurtSpeed = this.lastSpurtSpeed;
 			const v = this.hp.getLastSpurtPair(this, this.lastSpurtSpeed, this.baseTargetSpeed[2]);
 			this.lastSpurtTransition = v[0];
 			this.lastSpurtSpeed = v[1];
 			if ((this.hp as any).isMaxSpurt && (this.hp as any).isMaxSpurt()) {
 				this.fullSpurt = true;
+			} else {
+				this.nonFullSpurtVelocityDiff = this.lastSpurtSpeed - initialLastSpurtSpeed;
+				this.nonFullSpurtDelayDistance = this.lastSpurtTransition >= 0 ? this.lastSpurtTransition - (this.course.distance * 2 / 3) : null;
 			}
 		}
 		if (this.pos >= this.lastSpurtTransition) {
