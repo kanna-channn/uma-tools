@@ -8,6 +8,7 @@ import { computePosition, flip } from '@floating-ui/dom';
 import { CourseHelpers } from '../uma-skill-tools/CourseData';
 import { RaceParameters, Mood, GroundCondition, Weather, Season, Time, Grade } from '../uma-skill-tools/RaceParameters';
 import { PosKeepMode } from '../uma-skill-tools/RaceSolver';
+import { Strategy, Aptitude } from '../uma-skill-tools/HorseTypes';
 import type { GameHpPolicy } from '../uma-skill-tools/HpPolicy';
 
 import { Language, LanguageSelect, useLanguageSelect } from '../components/Language';
@@ -15,6 +16,7 @@ import { ExpandedSkillDetails, STRINGS_en as SKILL_STRINGS_en } from '../compone
 import { RaceTrack, TrackSelect, RegionDisplayType } from '../components/RaceTrack';
 import { HorseState, SkillSet } from '../components/HorseDefTypes';
 import { HorseDef, horseDefTabs } from '../components/HorseDef';
+import { TemplateBasedImageParser } from '../components/TemplateBasedImageParser';
 import { TRACKNAMES_ja, TRACKNAMES_en } from '../strings/common';
 import { RaceState } from '../uma-skill-tools/RaceSolver';
 
@@ -27,6 +29,7 @@ import { IntroText } from './IntroText';
 import skilldata from '../uma-skill-tools/data/skill_data.json';
 import skillnames from '../uma-skill-tools/data/skillnames.json';
 import skill_meta from '../skill_meta.json';
+import umas from '../umas.json';
 
 
 
@@ -37,6 +40,10 @@ function skillmeta(id: string) {
 
 import './app.css';
 import { HorseStateStorageBox } from './components/databox';
+import '../components/ImageParser.css';
+
+// Global constants defined by build system
+declare const CC_GLOBAL: boolean;
 
 const DEFAULT_SAMPLES = 500;
 const DEFAULT_SEED = 2615953739;
@@ -855,6 +862,7 @@ function App(props) {
 	}, new Map());
 
 	const [popoverSkill, setPopoverSkill] = useState('');
+	const [parsedUmaData, setParsedUmaData] = useState(null);
 
 	function racesetter(prop) {
 		return (value) => setRaceDef(racedef.set(prop, value));
@@ -1030,6 +1038,325 @@ function App(props) {
 		postEvent('copyUma', {direction: 'swap'});
 		setUma1(uma2);
 		setUma2(uma1);
+	}
+
+	function handleImageParsed(data) {
+		console.log('Parsed Uma data:', data);
+		setParsedUmaData(data);
+
+		// Convert parsed data to HorseState and apply to current uma
+		const horseState = convertParsedDataToHorseState(data);
+		console.log('Converted HorseState:', horseState.toJS());
+
+		[
+			setUma1,
+			setUma2, 
+			setPacer
+		][currentIdx](horseState)
+		console.log(`Applied to Uma ${currentIdx + 1}`);
+	}
+
+	function handleImageParseError(error) {
+		alert(`Image parsing failed: ${error}`);
+	}
+
+	function convertParsedDataToHorseState(data) {
+		let horseState = new HorseState();
+
+		// Find matching Uma by outfit and name
+		const umaId = findMatchingUma(data.outfit, data.name);
+		if (umaId) {
+			horseState = horseState.set('outfitId', umaId);
+			console.log('Found matching Uma:', umaId);
+		}
+
+		// Set stats
+		horseState = horseState.set('speed', data.stats.speed);
+		horseState = horseState.set('stamina', data.stats.stamina);
+		horseState = horseState.set('power', data.stats.power);
+		horseState = horseState.set('guts', data.stats.guts);
+		horseState = horseState.set('wisdom', data.stats.wisdom);
+
+		// Find highest aptitudes and set strategy based on highest style aptitude
+		const surfaceAptitudes = [data.aptitudes.track.turf, data.aptitudes.track.dirt];
+		const distanceAptitudes = [data.aptitudes.distance.sprint, data.aptitudes.distance.mile, data.aptitudes.distance.medium, data.aptitudes.distance.long];
+		const styleAptitudes = [data.aptitudes.style.front, data.aptitudes.style.pace, data.aptitudes.style.late, data.aptitudes.style.end];
+
+		const highestSurface = getHighestAptitude(surfaceAptitudes);
+		const highestDistance = getHighestAptitude(distanceAptitudes);
+		const highestStyle = getHighestAptitude(styleAptitudes);
+
+		// Set strategy based on highest style aptitude
+		const strategy = getStrategyFromAptitude(data.aptitudes.style, highestStyle);
+
+		// Set aptitudes to highest values
+		horseState = horseState.set('surfaceAptitude', highestSurface);
+		horseState = horseState.set('distanceAptitude', highestDistance);
+		horseState = horseState.set('strategyAptitude', highestStyle);
+		horseState = horseState.set('strategy', strategy);
+
+		// Add matched skills
+		const matchedSkills = findMatchingSkills(data.skills);
+		if (matchedSkills.length > 0) {
+			horseState = horseState.set('skills', SkillSet(matchedSkills));
+			console.log('Added skills:', matchedSkills);
+		}
+
+		return horseState;
+	}
+
+	function getHighestAptitude(aptitudes: string[]): string {
+		const aptitudeOrder = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
+		let highest = 'G';
+		let highestIndex = aptitudeOrder.length - 1;
+
+		for (const aptitude of aptitudes) {
+			const index = aptitudeOrder.indexOf(aptitude);
+			if (index !== -1 && index < highestIndex) {
+				highest = aptitude;
+				highestIndex = index;
+			}
+		}
+
+		return highest;
+	}
+
+	function getStrategyFromAptitude(styleAptitudes: any, highestStyle: string): string {
+		// Find which style has the highest aptitude and return corresponding strategy
+		if (styleAptitudes.front === highestStyle) {
+			return 'Senkou';
+		} else if (styleAptitudes.pace === highestStyle) {
+			return 'Senkou';
+		} else if (styleAptitudes.late === highestStyle) {
+			return 'Oikomi';
+		} else if (styleAptitudes.end === highestStyle) {
+			return 'Oikomi';
+		} else {
+			return 'Sasi'; // Default fallback
+		}
+	}
+
+	function findMatchingUma(outfit: string, name: string): string | null {
+		// Try to find by outfit first (more specific)
+		if (outfit && outfit.trim()) {
+			for (const [umaId, umaData] of Object.entries(umas)) {
+				const uma = umaData as any;
+				for (const [outfitId, outfitName] of Object.entries(uma.outfits)) {
+					if (fuzzyMatch(outfitName as string, outfit)) {
+						console.log(`Matched outfit: "${outfitName}" -> "${outfit}"`);
+						return outfitId;
+					}
+				}
+			}
+		}
+
+		// Fallback to name matching
+		if (name && name.trim()) {
+			for (const [umaId, umaData] of Object.entries(umas)) {
+				const uma = umaData as any;
+				if (fuzzyMatch(uma.name[1], name)) {
+					console.log(`Matched name: "${uma.name[1]}" -> "${name}"`);
+					// Return the first outfit for this uma
+					return Object.keys(uma.outfits)[0];
+				}
+			}
+		}
+
+		return null;
+	}
+
+	function fuzzyMatch(str1: string, str2: string): boolean {
+		// Simple fuzzy matching - normalize strings and check if one contains the other
+		const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+		const n1 = normalize(str1);
+		const n2 = normalize(str2);
+
+		// Check if either string contains the other (for partial matches)
+		return n1.includes(n2) || n2.includes(n1) || 
+			   // Or check for high similarity
+			   calculateSimilarity(n1, n2) > 0.7;
+	}
+
+	function calculateSimilarity(str1: string, str2: string): number {
+		// Simple Levenshtein distance-based similarity
+		const longer = str1.length > str2.length ? str1 : str2;
+		const shorter = str1.length > str2.length ? str2 : str1;
+
+		if (longer.length === 0) return 1.0;
+
+		const distance = levenshteinDistance(longer, shorter);
+		return (longer.length - distance) / longer.length;
+	}
+
+	function levenshteinDistance(str1: string, str2: string): number {
+		const matrix = [];
+
+		for (let i = 0; i <= str2.length; i++) {
+			matrix[i] = [i];
+		}
+
+		for (let j = 0; j <= str1.length; j++) {
+			matrix[0][j] = j;
+		}
+
+		for (let i = 1; i <= str2.length; i++) {
+			for (let j = 1; j <= str1.length; j++) {
+				if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+					matrix[i][j] = matrix[i - 1][j - 1];
+				} else {
+					matrix[i][j] = Math.min(
+						matrix[i - 1][j - 1] + 1,
+						matrix[i][j - 1] + 1,
+						matrix[i - 1][j] + 1
+					);
+				}
+			}
+		}
+
+		return matrix[str2.length][str1.length];
+	}
+
+	function findMatchingSkills(parsedSkills: string[]): string[] {
+		const matchedSkills: string[] = [];
+
+		for (let i = 0; i < parsedSkills.length; i++) {
+			const parsedSkill = parsedSkills[i];
+			if (!parsedSkill || !parsedSkill.trim()) continue;
+
+			// First skill (top left) is the unique skill - only match from 10... pool
+			// All other skills should not match from 10... pool (inherited uniques use 90...)
+			const isUniqueSkill = i === 0;
+			const skillId = findMatchingSkill(parsedSkill, isUniqueSkill);
+
+			if (skillId) {
+				matchedSkills.push(skillId);
+				console.log(`Matched skill: "${parsedSkill}" -> ${skillId} (${isUniqueSkill ? 'unique' : 'inherited/regular'})`);
+			} else {
+				console.log(`No match found for skill: "${parsedSkill}" (${isUniqueSkill ? 'unique' : 'inherited/regular'})`);
+			}
+		}
+
+		return matchedSkills;
+	}
+
+	function findMatchingSkill(skillName: string, isUniqueSkill: boolean = false): string | null {
+		let bestMatch = null;
+		let bestSimilarity = 0;
+
+		for (const [skillId, names] of Object.entries(skillnames)) {
+			const skillNames = names as string[];
+
+			// Filter skill pool based on whether this is a unique skill
+			if (isUniqueSkill) {
+				// For unique skills, only match from 10... pool (original uniques)
+				if (!skillId.startsWith('10')) continue;
+			} else {
+				// For non-unique skills, exclude 10... pool (use 90... inherited uniques and regular skills)
+				if (skillId.startsWith('10')) continue;
+			}
+
+			// Check both Japanese and English names
+			for (const name of skillNames) {
+				if (fuzzyMatch(name, skillName)) {
+					let similarity = calculateSimilarity(
+						normalizeString(name), 
+						normalizeString(skillName)
+					);
+
+					// Apply tier-based matching bonus for skills with variants
+					const originalSimilarity = similarity;
+					similarity = applyTierMatchingBonus(name, skillName, similarity);
+
+					// Debug logging for tier matching
+					if (originalSimilarity !== similarity) {
+						const skillTier = extractTierSymbol(name);
+						const parsedTier = extractTierSymbol(skillName);
+						console.log(`Tier match: "${skillName}" -> "${name}" (${skillTier} vs ${parsedTier}) ${originalSimilarity.toFixed(3)} -> ${similarity.toFixed(3)}`);
+					}
+
+					if (similarity > bestSimilarity) {
+						bestMatch = skillId;
+						bestSimilarity = similarity;
+					}
+				}
+			}
+		}
+
+		// Only return if similarity is above threshold
+		return bestSimilarity > 0.6 ? bestMatch : null;
+	}
+
+	function normalizeString(s: string): string {
+		return s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+	}
+
+	function applyTierMatchingBonus(skillName: string, parsedSkill: string, baseSimilarity: number): number {
+		// Check if this skill has tier variants (◎, ○, ×)
+		const hasTierVariants = skillName.includes('◎') || skillName.includes('○') || skillName.includes('×');
+
+		if (!hasTierVariants) {
+			return baseSimilarity; // No bonus for non-tier skills
+		}
+
+		// Extract the tier symbol from both strings
+		const skillTier = extractTierSymbol(skillName);
+		const parsedTier = extractTierSymbol(parsedSkill);
+
+		// Apply tier matching bonus
+		if (skillTier && parsedTier) {
+			if (skillTier === parsedTier) {
+				// Exact tier match - very significant bonus (can exceed 1.0)
+				return baseSimilarity + 0.5;
+			} else if (isTierCompatible(skillTier, parsedTier)) {
+				// Compatible tier match - significant bonus
+				return Math.min(1.0, baseSimilarity + 0.3);
+			} else {
+				// Incompatible tier match - penalty
+				return Math.max(0.0, baseSimilarity - 0.2);
+			}
+		}
+
+		return baseSimilarity;
+	}
+
+	function extractTierSymbol(text: string): string | null {
+		// Look for tier symbols at the end of the string
+		// Also handle common OCR mistakes
+		const tierMatch = text.match(/[◎○×©®™]/);
+		if (tierMatch) {
+			console.log(`Extracted tier symbol: "${text}" -> "${tierMatch[0]}"`);
+			return tierMatch[0];
+		}
+
+		// Handle common OCR mistakes
+		// "O" at the end often means "○" (single circle)
+		if (text.trim().endsWith(' O')) {
+			console.log(`Extracted tier symbol: "${text}" -> "○" (from O)`);
+			return '○';
+		}
+
+		// "©" often means "◎" (double circle) in OCR
+		if (text.includes('©')) {
+			console.log(`Extracted tier symbol: "${text}" -> "©" (copyright)`);
+			return '©';
+		}
+
+		console.log(`No tier symbol found in: "${text}"`);
+		return null;
+	}
+
+	function isTierCompatible(skillTier: string, parsedTier: string): boolean {
+		// Define tier compatibility rules
+		const tierMap: { [key: string]: string[] } = {
+			'◎': ['○', '©', '®', '™'], // Double circle matches single circle or copyright-like symbols
+			'○': ['◎', '©', '®', '™'], // Single circle matches double circle or copyright-like symbols
+			'×': ['×'], // X only matches X
+			'©': ['◎', '○'], // Copyright symbol matches circles
+			'®': ['◎', '○'], // Registered symbol matches circles
+			'™': ['◎', '○']  // Trademark symbol matches circles
+		};
+
+		return tierMap[skillTier]?.includes(parsedTier) || false;
 	}
 
 	const strings = {skillnames: {}, tracknames: TRACKNAMES_en};
@@ -1821,6 +2148,12 @@ function App(props) {
 						<HorseDef key={uma1.outfitId} state={uma1} setState={setUma1} courseDistance={course.distance} tabstart={() => 4} onResetAll={resetAllUmas}>
 							{expanded ? 'Umamusume 1' : umaTabs}
 						</HorseDef>
+						<div id="imageParserPane">
+							<TemplateBasedImageParser 
+								onDataParsed={handleImageParsed}
+								onError={handleImageParseError}
+							/>
+						</div>
 					</div>
 					{expanded &&
 						<div id="copyUmaButtons">
@@ -1832,11 +2165,23 @@ function App(props) {
 						<HorseDef key={uma2.outfitId} state={uma2} setState={setUma2} courseDistance={course.distance} tabstart={() => 4 + horseDefTabs()} onResetAll={resetAllUmas}>
 							{expanded ? 'Umamusume 2' : umaTabs}
 						</HorseDef>
+						<div id="imageParserPane">
+							<TemplateBasedImageParser 
+								onDataParsed={handleImageParsed}
+								onError={handleImageParseError}
+							/>
+						</div>
 					</div>}
 					{posKeepMode == PosKeepMode.Virtual && <div class={!expanded && currentIdx == 2 ? 'selected' : ''}>
 						<HorseDef key={pacer.outfitId} state={pacer} setState={setPacer} courseDistance={course.distance} tabstart={() => 4 + (mode == Mode.Compare ? 2 : 1) * horseDefTabs()} onResetAll={resetAllUmas}>
 							{expanded ? 'Virtual Pacemaker' : umaTabs}
 						</HorseDef>
+						<div id="imageParserPane">
+							<TemplateBasedImageParser 
+								onDataParsed={handleImageParsed}
+								onError={handleImageParseError}
+							/>
+						</div>
 					</div>}
 					{expanded && <div id="closeUmaOverlay" title="Close panel" onClick={toggleExpand}>✕</div>}
 				</div>
