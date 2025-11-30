@@ -68,20 +68,20 @@ const DATA_REGIONS: DataRegion[] = [
 	{ name: 'wit', x: 900, y: 480, width: 106, height: 56, type: 'stats' },
 	
 	// Track aptitudes
-	{ name: 'turf_aptitude', x: 376, y: 578, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'dirt_aptitude', x: 566, y: 578, width: 40, height: 40, type: 'aptitudes' },
+	{ name: 'turf_aptitude', x: 375, y: 576, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'dirt_aptitude', x: 566, y: 576, width: 42, height: 42, type: 'aptitudes' },
 	
 	// Distance aptitudes
-	{ name: 'sprint_aptitude', x: 376, y: 638, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'mile_aptitude', x: 566, y: 638, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'medium_aptitude', x: 756, y: 638, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'long_aptitude', x: 948, y: 638, width: 40, height: 40, type: 'aptitudes' },
+	{ name: 'sprint_aptitude', x: 375, y: 636, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'mile_aptitude', x: 565, y: 636, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'medium_aptitude', x: 755, y: 636, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'long_aptitude', x: 944, y: 636, width: 42, height: 42, type: 'aptitudes' },
 	
 	// Style aptitudes
-	{ name: 'front_aptitude', x: 376, y: 700, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'pace_aptitude', x: 566, y: 700, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'late_aptitude', x: 756, y: 700, width: 40, height: 40, type: 'aptitudes' },
-	{ name: 'end_aptitude', x: 948, y: 700, width: 40, height: 40, type: 'aptitudes' },
+	{ name: 'front_aptitude', x: 375, y: 696, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'pace_aptitude', x: 565, y: 696, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'late_aptitude', x: 755, y: 696, width: 42, height: 42, type: 'aptitudes' },
+	{ name: 'end_aptitude', x: 944, y: 696, width: 42, height: 42, type: 'aptitudes' },
 	
 	// Skills will be generated dynamically based on image height
 ];
@@ -194,7 +194,17 @@ export function TemplateBasedImageParser({ onDataParsed, onError }: ImageParserP
 		}
 	};
 
-	const handleFileSelect = async (event: Event) => {
+	const handlePaste = (event: ClipboardEvent) => {
+		var items = event.clipboardData.items;
+		for (const index in items) {
+			const item = items[index];
+			if (item.kind === 'file') {
+				handleFile(item.getAsFile());
+			}
+		}
+	}
+
+	const handleFileSelect = (event: Event) => {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 		if (!file) return;
@@ -203,7 +213,10 @@ export function TemplateBasedImageParser({ onDataParsed, onError }: ImageParserP
 			onError('Please select an image file');
 			return;
 		}
+		handleFile(file);
+	}
 
+	const handleFile = async (file: File) => {
 		setIsProcessing(true);
 		setProgress(0);
 		setProcessingStage('Loading image...');
@@ -790,7 +803,7 @@ export function TemplateBasedImageParser({ onDataParsed, onError }: ImageParserP
 	};
 
 	return (
-		<div class="imageParser">
+		<div class="imageParser" onPaste={handlePaste}>
 			<h3>Parse Uma from Image (Template-Based)</h3>
 			<div class="parserControls">
 				<div class="modeSelector">
